@@ -8,11 +8,11 @@ on:
         required: true
         type: string
       target_env:
-        description: "Must match deployed environment (state key)"
+        description: "GitHub Environment (and Terraform deployment_env)"
         type: choice
         options:
           - staging
-          - prod
+          - production
         required: true
 
 permissions:
@@ -22,29 +22,28 @@ jobs:
   refuse:
     if: github.event.inputs.confirm != 'DESTROY'
     runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.target_env }}
     steps:
       - run: echo "::error::Type DESTROY exactly to confirm." && exit 1
 
   destroy:
     if: github.event.inputs.confirm == 'DESTROY'
     runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.target_env }}
     env:
-      TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
-      AWS_REGION: ${{ secrets.AWS_REGION }}
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      TF_STATE_KEY: ${{ github.event.inputs.target_env == 'prod' && 'cv-bot/prod.tfstate' || 'cv-bot/staging.tfstate' }}
-      TF_VAR_deployment_env: ${{ github.event.inputs.target_env }}
       TF_IN_AUTOMATION: "true"
       TF_VAR_project: cv-bot
-      TF_VAR_aws_region: ${{ secrets.AWS_REGION }}
-      TF_VAR_openrouter_api_key: ${{ secrets.OPENROUTER_API_KEY }}
-      TF_VAR_qdrant_url: ${{ secrets.QDRANT_URL }}
-      TF_VAR_qdrant_api_key: ${{ secrets.QDRANT_API_KEY }}
+      TF_VAR_deployment_env: ${{ github.event.inputs.target_env }}
+      TF_STATE_KEY: ${{ github.event.inputs.target_env == 'production' && 'cv-bot/production.tfstate' || 'cv-bot/staging.tfstate' }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Guard (required secrets)
+      - name: Guard (required environment secrets)
+        env:
+          TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
           set -e
           missing=""
@@ -53,7 +52,7 @@ jobs:
           [ -z "${AWS_ACCESS_KEY_ID:-}" ] && missing="${missing} AWS_ACCESS_KEY_ID"
           [ -z "${AWS_SECRET_ACCESS_KEY:-}" ] && missing="${missing} AWS_SECRET_ACCESS_KEY"
           if [ -n "$missing" ]; then
-            echo "::error::Missing:${missing}"
+            echo "::error::Missing environment secrets:${missing}"
             exit 1
           fi
 
@@ -72,11 +71,16 @@ jobs:
         working-directory: infra/terraform
         run: |
           terraform init -input=false \
-            -backend-config="bucket=${TF_STATE_BUCKET}" \
-            -backend-config="key=${TF_STATE_KEY}" \
-            -backend-config="region=${AWS_REGION}" \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="key=${{ env.TF_STATE_KEY }}" \
+            -backend-config="region=${{ secrets.AWS_REGION }}" \
             -backend-config="encrypt=true"
 
       - name: Terraform destroy
         working-directory: infra/terraform
+        env:
+          TF_VAR_aws_region: ${{ secrets.AWS_REGION }}
+          TF_VAR_openrouter_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+          TF_VAR_qdrant_url: ${{ secrets.QDRANT_URL }}
+          TF_VAR_qdrant_api_key: ${{ secrets.QDRANT_API_KEY }}
         run: terraform destroy -auto-approve

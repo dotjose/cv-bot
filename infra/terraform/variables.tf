@@ -10,10 +10,10 @@ variable "project" {
 
 variable "deployment_env" {
   type        = string
-  description = "Environment segment in resource names (e.g. staging, prod)."
+  description = "Environment segment in resource names; matches GitHub Environment (staging | production)."
   validation {
-    condition     = contains(["staging", "prod"], var.deployment_env)
-    error_message = "deployment_env must be \"staging\" or \"prod\"."
+    condition     = contains(["staging", "production"], var.deployment_env)
+    error_message = "deployment_env must be \"staging\" or \"production\"."
   }
 }
 

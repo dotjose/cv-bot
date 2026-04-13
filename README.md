@@ -11,8 +11,8 @@
 | `packages/prompts/`, `packages/rag/`, `packages/memory/` | Shared Python libraries |
 | `data/` | CV / LinkedIn / summary / website / profile JSON |
 | `infra/terraform/` | Single root module: S3, ECR, Lambda, HTTP API, CloudFront (no child modules; reproducible from empty AWS + state bucket) |
-| `.github/workflows/deploy.yml` | Push `main` / `production` → static AWS keys → `terraform init` (S3 only) → **apply (full stack)** → ECR push → **apply (Lambda image)** → `outputs.json` → Next → S3 → CF |
-| `.github/workflows/destroy.yml` | Manual destroy: confirm + **staging** / **prod** |
+| `.github/workflows/deploy.yml` | Push `main` / `production` → **GitHub Environment** `staging` / `production` → env secrets → `terraform init` (S3 only) → **apply (full stack)** → ECR push → **apply (Lambda image)** → `outputs.json` → Next → S3 → CF |
+| `.github/workflows/destroy.yml` | Manual destroy: confirm + **staging** / **production** (loads secrets from that environment) |
 
 ## Prerequisites
 
@@ -62,27 +62,38 @@ From **repo root**: `docker build -f apps/backend/Dockerfile -t <ecr-url>:<tag> 
 
 ## Deploy (GitHub Actions + Terraform — MVP)
 
-**One-time (AWS console):** create an empty S3 bucket for **Terraform state only** (name is your `TF_STATE_BUCKET` secret). No other manual AWS steps.
+**One-time (AWS console):** create an empty S3 bucket for **Terraform state only** (same logical name can be referenced by per-environment `TF_STATE_BUCKET` secrets if you use one bucket with different prefixes, or two buckets—your choice). No other manual AWS steps for app infra.
+
+**GitHub Environments (required):** create **`staging`** and **`production`** under **Settings → Environments**. Do **not** rely on repository-level secrets for deploy; put the same secret names on **each** environment:
+
+| Secret (required per env) | Purpose |
+|----------------------------|---------|
+| `AWS_ACCESS_KEY_ID` | CI IAM user |
+| `AWS_SECRET_ACCESS_KEY` | CI IAM user |
+| `AWS_REGION` | Region for Terraform backend, provider, and `configure-aws-credentials` (**use secrets, not `vars`**) |
+| `TF_STATE_BUCKET` | Remote state bucket name |
+
+Optional per environment: `OPENROUTER_API_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`.
 
 **S3 app buckets (Terraform):**
 
 | Bucket | Pattern | Purpose |
 |--------|---------|---------|
-| Frontend | `cv-bot-{staging\|prod}-frontend` | Next `out/` · private · CloudFront OAC only |
-| Memory | `cv-bot-{staging\|prod}-memory` | Chat JSON at `chat/{sessionId}.json` · private · Lambda IAM only (`ListBucket`, `GetObject`, `PutObject`) |
+| Frontend | `cv-bot-{staging\|production}-frontend` | Next `out/` · private · CloudFront OAC only |
+| Memory | `cv-bot-{staging\|production}-memory` | Chat JSON at `chat/{sessionId}.json` · private · Lambda IAM only (`ListBucket`, `GetObject`, `PutObject`) |
 
-`{staging\|prod}` comes from `TF_VAR_deployment_env` (`main` → `staging`, `production` branch → `prod`). ECR repo is `cv-bot-{env}-api`; Lambda uses a public AWS base image on the first apply until CI pushes your image and reapplies.
+`{staging\|production}` is `deployment_env` (`main` → **staging**, `production` branch → **production**). ECR repo is `cv-bot-{env}-api`. Lambda uses a public AWS base image on the first apply until CI pushes your image and reapplies.
 
 **Remote state keys**
 
-| Branch | `TF_VAR_deployment_env` | State object key |
-|--------|-------------------------|------------------|
-| `main` | `staging` | `cv-bot/staging.tfstate` |
-| `production` | `prod` | `cv-bot/prod.tfstate` |
+| Branch | GitHub `environment` | `deployment_env` | State object key |
+|--------|----------------------|------------------|------------------|
+| `main` | `staging` | `staging` | `cv-bot/staging.tfstate` |
+| `production` | `production` | `production` | `cv-bot/production.tfstate` |
 
 **CI pipeline:** `terraform init` (S3 backend, **no DynamoDB**) → **`terraform apply`** (creates S3, ECR, CloudFront, API Gateway, Lambda with a placeholder image if `lambda_image_uri` is unset) → ECR login + **`aws ecr describe-repositories`** (`cv-bot-{env}-api`) → Docker + ECR (`:${GITHUB_SHA}`) → **`terraform apply -var=lambda_image_uri=...`** → **`terraform output -json` once** → Next build (`NEXT_PUBLIC_API_URL` from `http_api_endpoint`) → `s3 sync` + CloudFront invalidation.
 
-**Required GitHub secrets:** `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `TF_STATE_BUCKET`.
+**Required secrets** (copy onto **both** environments): `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `TF_STATE_BUCKET`.
 
 **No DynamoDB / `TF_LOCK_TABLE`:** not supported in this MVP pipeline. Optional app secrets: `OPENROUTER_API_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`.
 
@@ -94,10 +105,10 @@ From **repo root**: `docker build -f apps/backend/Dockerfile -t <ecr-url>:<tag> 
 
 **Local frontend:** `apps/frontend/.env.local.example` → `.env.local`.
 
-**Destroy:** Actions → **Destroy** → pick **staging** or **prod** → type **`DESTROY`** → `terraform destroy -auto-approve` (uses matching state key).
+**Destroy:** Actions → **Destroy** → pick **staging** or **production** → type **`DESTROY`** → `terraform destroy -auto-approve` (uses matching state key and that environment’s secrets).
 
 **Note:** Bucket names are **deterministic** (no random suffix). Changing `deployment_env` or migrating from older random bucket names can force bucket replacement — prefer fresh accounts or coordinated state/bucket cleanup.
 
 **Terraform outputs (root):** `frontend_bucket`, `memory_bucket`, `ecr_repository_url`, `http_api_endpoint`, `cloudfront_distribution_id`.
 
-**State migration:** If you still have state from the old `module.bootstrap` / `module.app` layout, point CI at a **new** `TF_STATE_KEY` (or run manual `terraform state` surgery); resource addresses and bucket names changed.
+**State migration:** If you still have state from the old `module.bootstrap` / `module.app` layout, or older `prod` / `cv-bot/prod.tfstate` naming, use a **new** state key (`cv-bot/staging.tfstate` / `cv-bot/production.tfstate`) or run manual `terraform state` surgery; `deployment_env` is now **`production`**, not `prod`, so resource names changed.
