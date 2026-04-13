@@ -19,7 +19,7 @@ variable "deployment_env" {
 
 variable "lambda_image_uri" {
   type        = string
-  description = "Full ECR image URI including tag. Leave empty to use the AWS public Lambda Python image until the first app image is pushed."
+  description = "Full ECR image URI including tag. Empty = create ECR/S3/CloudFront/IAM only; CI sets this after docker push, then apply again."
   default     = ""
 }
 

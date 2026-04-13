@@ -1,9 +1,11 @@
 resource "aws_lambda_function" "api" {
+  count = local.lambda_enabled ? 1 : 0
+
   function_name = "${local.name_prefix}-api"
-  role          = aws_iam_role.lambda.arn
-  package_type  = "Image"
-  image_uri     = local.lambda_image_effective
-  publish       = true
+  role            = aws_iam_role.lambda.arn
+  package_type    = "Image"
+  image_uri       = var.lambda_image_uri
+  publish         = true
 
   memory_size = 1536
   timeout     = 120
@@ -30,7 +32,9 @@ resource "aws_lambda_function" "api" {
 }
 
 resource "aws_lambda_alias" "live" {
+  count = local.lambda_enabled ? 1 : 0
+
   name             = "live"
-  function_name    = aws_lambda_function.api.function_name
-  function_version = aws_lambda_function.api.version
+  function_name    = aws_lambda_function.api[0].function_name
+  function_version = aws_lambda_function.api[0].version
 }

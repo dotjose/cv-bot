@@ -82,7 +82,7 @@ Optional per environment: `OPENROUTER_API_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`.
 | Frontend | `cv-bot-{staging\|production}-frontend` | Next `out/` · private · CloudFront OAC only |
 | Memory | `cv-bot-{staging\|production}-memory` | Chat JSON at `chat/{sessionId}.json` · private · Lambda IAM only (`ListBucket`, `GetObject`, `PutObject`) |
 
-`{staging\|production}` is `deployment_env` (`main` → **staging**, `production` branch → **production**). ECR repo is `cv-bot-{env}-api`. Lambda uses a public AWS base image on the first apply until CI pushes your image and reapplies.
+`{staging\|production}` is `deployment_env` (`main` → **staging**, `production` branch → **production**). ECR repo is `cv-bot-{env}-api`. Lambda **`image_uri` is only the image built and pushed in CI** (never a public `public.ecr.aws/lambda/...` URI in Terraform).
 
 **Remote state keys**
 
@@ -91,7 +91,7 @@ Optional per environment: `OPENROUTER_API_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`.
 | `main` | `staging` | `staging` | `cv-bot/staging.tfstate` |
 | `production` | `production` | `production` | `cv-bot/production.tfstate` |
 
-**CI pipeline:** `terraform init` (S3 backend, **no DynamoDB**) → **`terraform apply`** (creates S3, ECR, CloudFront, API Gateway, Lambda with a placeholder image if `lambda_image_uri` is unset) → ECR login + **`aws ecr describe-repositories`** (`cv-bot-{env}-api`) → Docker + ECR (`:${GITHUB_SHA}`) → **`terraform apply -var=lambda_image_uri=...`** → **`terraform output -json` once** → Next build (`NEXT_PUBLIC_API_URL` from `http_api_endpoint`) → `s3 sync` + CloudFront invalidation.
+**CI pipeline:** `terraform init` (S3 backend, **no DynamoDB**) → **`terraform apply -var='lambda_image_uri='`** (S3, ECR, CloudFront, Lambda IAM — **no** Lambda/API until an ECR image exists) → ECR login + **`aws ecr describe-repositories`** (`cv-bot-{env}-api`) → **Docker build + push** (`:${GITHUB_SHA}`) → **`terraform apply -var=lambda_image_uri=<ECR>:<sha>`** (Lambda + HTTP API) → **`terraform output -json` once** → Next build (`NEXT_PUBLIC_API_URL` from `http_api_endpoint`) → `s3 sync` + CloudFront invalidation.
 
 **Required secrets** (copy onto **both** environments): `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `TF_STATE_BUCKET`.
 

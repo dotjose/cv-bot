@@ -14,8 +14,8 @@ output "ecr_repository_url" {
 }
 
 output "http_api_endpoint" {
-  value       = aws_apigatewayv2_api.api.api_endpoint
-  description = "HTTP API base URL for NEXT_PUBLIC_API_URL."
+  value       = local.lambda_enabled ? aws_apigatewayv2_api.api[0].api_endpoint : ""
+  description = "HTTP API base URL for NEXT_PUBLIC_API_URL (empty until lambda_image_uri is applied)."
 }
 
 output "cloudfront_distribution_id" {
