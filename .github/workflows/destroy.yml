@@ -1,0 +1,62 @@
+# Manual teardown of the whole Terraform stack (same remote state as deploy).
+
+name: Destroy
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type DESTROY to confirm"
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_VAR_project: cv-bot
+  TF_VAR_aws_region: ${{ secrets.AWS_REGION }}
+  TF_VAR_openrouter_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+  TF_VAR_qdrant_url: ${{ secrets.QDRANT_URL }}
+  TF_VAR_qdrant_api_key: ${{ secrets.QDRANT_API_KEY }}
+
+jobs:
+  refuse:
+    if: github.event.inputs.confirm != 'DESTROY'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "::error::Type DESTROY exactly to confirm." && exit 1
+
+  destroy:
+    if: github.event.inputs.confirm == 'DESTROY'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Require remote state configuration
+        run: test -n "${{ secrets.TF_STATE_BUCKET }}" && test -n "${{ secrets.TF_LOCK_TABLE }}"
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform init
+        working-directory: infra/terraform
+        run: >
+          terraform init -input=false
+          -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}"
+          -backend-config="key=cv-bot/terraform.tfstate"
+          -backend-config="region=${{ secrets.AWS_REGION }}"
+          -backend-config="dynamodb_table=${{ secrets.TF_LOCK_TABLE }}"
+          -backend-config="encrypt=true"
+
+      - name: Terraform destroy
+        working-directory: infra/terraform
+        run: terraform destroy -auto-approve

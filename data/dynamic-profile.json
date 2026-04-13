@@ -1,0 +1,229 @@
+{
+  "overview": {
+    "headline": "Senior Full-Stack Engineer & Co-founder building scalable AI and distributed systems",
+    "summary": {
+      "short": "Full-stack engineer with 8+ years of experience in scalable backend systems, microservices, and AI-powered platforms.",
+      "medium": "Experienced in Node.js, NestJS, React, and cloud-native architectures. Co-founding Habesha Network (habeshanetwork.com), a multi-vertical marketplace (commerce, real estate, jobs, pro services, community). Strong in fintech, event-driven systems, and AI integration.",
+      "long": "Senior Full-Stack Engineer and Founding Engineer co-founding Habesha Network (habeshanetwork.com): a unified marketplace and community platform — e-commerce, real estate, jobs, Angi-style professional services, meetups, news, events, and blogging. Strong background in scalable systems, microservices, Kafka-based event streaming, Redis, and cloud-native infrastructure. Proven track record in fintech, blockchain integrations, and AI-driven automation including compliance and risk scoring engines."
+    }
+  },
+  "skills": [
+    "TypeScript",
+    "JavaScript",
+    "Wordpress",
+    "Drupal",
+    "PHP",
+    "Laravel",
+    "Python",
+    "FastAPI",
+    "Node.js",
+    "NestJS",
+    "React",
+    "Next.js",
+    "PostgreSQL",
+    "MongoDB",
+    "Redis",
+    "Kafka",
+    "AWS",
+    "Docker",
+    "Kubernetes",
+    "GraphQL",
+    "gRPC",
+    "System Design",
+    "DDD",
+    "CQRS",
+    "OpenAI / LLM Engineering"
+  ],
+  "projects": [
+    {
+      "projects": [
+        {
+          "id": "p1",
+          "title": "Habesha Network",
+          "description": "habeshanetwork.com — large unified marketplace: e-commerce (products), real estate (properties), job marketplace, professional-services network (Angi-like pro discovery), plus community meetups, news, events, and blogging. AI-assisted features where applicable; core engineering is multi-sided listings, search/discovery, trust, and scalable backends.",
+          "stack": [
+            "React",
+            "Next.js",
+            "Zustand",
+            "TailwindCSS",
+            "Framer Motion",
+            "NestJS",
+            "MongoDB",
+            "Redis",
+            "Elasticsearch",
+            "OpenAI",
+            "Groq"
+          ]
+        },
+        {
+          "id": "p2",
+          "title": "Habesha Service",
+          "description": "Professional service marketplace connecting clients with service providers in Ethiopia, featuring pixel-perfect UI, smooth animations, and mobile-first design.",
+          "stack": [
+            "React",
+            "Next.js",
+            "TailwindCSS",
+            "Framer Motion",
+            "Node.js",
+            "REST APIs"
+          ]
+        },
+        {
+          "id": "p3",
+          "title": "YellowCard Crypto Exchange Backend",
+          "description": "Mission-critical backend infrastructure for Africa’s leading crypto exchange with real-time transaction processing and scalable cloud systems.",
+          "stack": [
+            "Node.js",
+            "Express.js",
+            "AWS Lambda",
+            "DynamoDB"
+          ]
+        },
+        {
+          "id": "p4",
+          "title": "FinHub Core Banking Platform",
+          "description": "Enterprise-grade core banking platform (FinHub) with real-time processing, scalable financial infrastructure, and advanced backend architecture. Includes AI-powered fintech work on the same product: real-time risk scoring, compliance automation, and transaction validation for financial infrastructure.",
+          "stack": [
+            "Node.js",
+            "NestJS",
+            "Fastify",
+            "PostgreSQL",
+            "Kafka",
+            "Redis",
+            "OpenAI"
+          ]
+        },
+        {
+          "id": "p5",
+          "title": "Taxiye Ride-Hailing Platform",
+          "description": "Full-stack ride-hailing web application with GPS tracking, payment integration, and real-time ride management system.",
+          "stack": [
+            "React",
+            "Next.js",
+            "Express.js",
+            "CSS-in-JS"
+          ]
+        },
+        {
+          "id": "p6",
+          "title": "TheDad.Digital E-Commerce Platform",
+          "description": "High-conversion e-commerce platform with WordPress + Shopify integrations and custom animation systems.",
+          "stack": [
+            "JavaScript",
+            "CSS3",
+            "WordPress",
+            "Shopify"
+          ]
+        },
+        {
+          "id": "p7",
+          "title": "SEPA Cyber Security Website",
+          "description": "Security-focused corporate platform with hardened WordPress architecture and custom plugin development.",
+          "stack": [
+            "JavaScript",
+            "CSS3",
+            "WordPress",
+            "PHP"
+          ]
+        },
+        {
+          "id": "p8",
+          "title": "IT Run Technology Platform",
+          "description": "Corporate tech services website with advanced integrations and performance optimization.",
+          "stack": [
+            "jQuery",
+            "CSS3",
+            "WordPress",
+            "PHP"
+          ]
+        },
+        {
+          "id": "p9",
+          "title": "Test Automation Framework",
+          "description": "End-to-end test automation framework with BDD testing, full coverage pipelines, and CI-ready architecture.",
+          "stack": [
+            "TypeScript",
+            "Node.js",
+            "Jest",
+            "Mocha"
+          ]
+        },
+        {
+          "id": "p10",
+          "title": "COVID-19 Surveillance Platform",
+          "description": "Open-source health monitoring system with real-time data collection and dynamic form generation.",
+          "stack": [
+            "React",
+            "TypeScript",
+            "Node.js",
+            "Express.js"
+          ]
+        },
+        {
+          "id": "p12",
+          "title": "CV AI Chatbot (Hugging Face Space)",
+          "description": "AI-powered CV assistant chatbot using LLMs with structured profile reasoning deployed on Hugging Face Spaces.",
+          "stack": [
+            "Python",
+            "Streamlit",
+            "OpenRouter",
+            "LLM",
+            "Hugging Face"
+          ]
+        }
+      ]
+    }
+  ],
+  "experience": [
+    {
+      "id": "e1",
+      "company": "Megenagha Bota / Habesha Network",
+      "role": "Co-founder & Founding Engineer",
+      "period": "Oct 2025 — Present",
+      "summary": "Co-founding Habesha Network: multi-vertical marketplace (commerce, real estate, jobs, pro services, community/events/news/blog). Architecture, core APIs, identity, and marketplace infrastructure."
+    },
+    {
+      "id": "e2",
+      "company": "Sepa Cyber Technologies",
+      "role": "Senior Full Stack Engineer",
+      "period": "2021 — Present",
+      "summary": "Built microservices, fintech integrations, AI systems, and event-driven architectures using Kafka, Redis, and Kubernetes."
+    },
+    {
+      "id": "e3",
+      "company": "Kifiya Technologies",
+      "role": "Senior QA Engineer",
+      "period": "2020 — 2022",
+      "summary": "Led automation testing, performance testing, and QA for distributed microservice systems."
+    },
+    {
+      "id": "e4",
+      "company": "360.Ground",
+      "role": "Senior Full Stack Developer",
+      "period": "2018 — 2020",
+      "summary": "Built SSR React apps, APIs, and CI/CD pipelines for production systems."
+    },
+    {
+      "id": "e5",
+      "company": "Exceed IT Systems",
+      "role": "Software Developer",
+      "period": "2017 — 2018",
+      "summary": "Developed microservices, CMS systems, and scalable backend APIs."
+    },
+    {
+      "id": "e6",
+      "company": "AhadooTec ICT Solutions",
+      "role": "Software Developer / Tester",
+      "period": "2015 — 2017",
+      "summary": "Built full-stack systems and QA automation frameworks."
+    }
+  ],
+  "education": [
+    {
+      "id": "ed1",
+      "institution": "University of Gondar",
+      "degree": "BSc Computer Science",
+      "period": "2011 — 2015"
+    }
+  ]
+}

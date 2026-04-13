@@ -1,0 +1,121 @@
+# Push main → OIDC → Terraform (init + optional bootstrap) → ECR image :${{ github.sha }} →
+# terraform apply (Lambda in-place image update) → Next static export → S3 sync → CloudFront invalidation.
+#
+# Secrets: AWS_ROLE_ARN, AWS_REGION, TF_STATE_BUCKET, TF_LOCK_TABLE,
+#          OPENROUTER_API_KEY, QDRANT_URL, QDRANT_API_KEY (optional), NEXT_PUBLIC_API_URL
+#
+# First push: bootstrap creates S3 + CloudFront + ECR (no Lambda). After first successful run,
+# set NEXT_PUBLIC_API_URL to the API URL from the job summary, then push again to rebuild the UI.
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TF_IN_AUTOMATION: "true"
+  IMAGE_TAG: ${{ github.sha }}
+  TF_VAR_project: cv-bot
+  TF_VAR_aws_region: ${{ secrets.AWS_REGION }}
+  TF_VAR_openrouter_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+  TF_VAR_qdrant_url: ${{ secrets.QDRANT_URL }}
+  TF_VAR_qdrant_api_key: ${{ secrets.QDRANT_API_KEY }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Require remote state configuration
+        run: test -n "${{ secrets.TF_STATE_BUCKET }}" && test -n "${{ secrets.TF_LOCK_TABLE }}"
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform init
+        working-directory: infra/terraform
+        run: >
+          terraform init -input=false
+          -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}"
+          -backend-config="key=cv-bot/terraform.tfstate"
+          -backend-config="region=${{ secrets.AWS_REGION }}"
+          -backend-config="dynamodb_table=${{ secrets.TF_LOCK_TABLE }}"
+          -backend-config="encrypt=true"
+
+      - name: Bootstrap (S3 + CloudFront + ECR only — first run)
+        working-directory: infra/terraform
+        run: |
+          set -e
+          if terraform state list 2>/dev/null | grep -q 'aws_lambda_function.api'; then
+            echo "Lambda in state — skip bootstrap."
+          else
+            terraform apply -auto-approve -var='enable_api=false'
+          fi
+
+      - uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Resolve ECR repository URL
+        id: ecr
+        working-directory: infra/terraform
+        run: echo "repository_url=$(terraform output -raw ecr_repository_url)" >> "$GITHUB_OUTPUT"
+
+      - name: Build Docker image (local tag cv-bot:$IMAGE_TAG)
+        run: docker build -f apps/backend/Dockerfile -t "cv-bot:${IMAGE_TAG}" .
+
+      - name: Tag and push to ECR (commit SHA — not latest-only)
+        env:
+          ECR_URI: ${{ steps.ecr.outputs.repository_url }}
+        run: |
+          set -e
+          test -n "$ECR_URI"
+          docker tag "cv-bot:${IMAGE_TAG}" "${ECR_URI}:${IMAGE_TAG}"
+          docker push "${ECR_URI}:${IMAGE_TAG}"
+          echo "LAMBDA_IMAGE_URI=${ECR_URI}:${IMAGE_TAG}" >> "$GITHUB_ENV"
+
+      - name: Terraform apply (update Lambda image_uri in place)
+        working-directory: infra/terraform
+        run: >
+          terraform apply -auto-approve
+          -var='enable_api=true'
+          -var="lambda_image_uri=${LAMBDA_IMAGE_URI}"
+
+      - name: API endpoint (set NEXT_PUBLIC_API_URL to this, no trailing slash)
+        run: |
+          echo "### NEXT_PUBLIC_API_URL" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`$(terraform -chdir=infra/terraform output -raw http_api_endpoint)\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/frontend/package-lock.json
+
+      - name: Build static frontend
+        working-directory: apps/frontend
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+        run: npm ci && npm run build && npm run export
+
+      - name: Deploy to S3
+        run: |
+          set -e
+          BUCKET=$(terraform -chdir=infra/terraform output -raw frontend_bucket)
+          aws s3 sync apps/frontend/out "s3://${BUCKET}/" --delete
+
+      - name: Invalidate CloudFront
+        run: |
+          set -e
+          DIST=$(terraform -chdir=infra/terraform output -raw cloudfront_distribution_id)
+          aws cloudfront create-invalidation --distribution-id "$DIST" --paths "/*"

@@ -1,0 +1,20 @@
+node_modules
+dist
+.next
+out
+apps/frontend/node_modules
+apps/backend/.venv
+apps/backend/.uv/
+.venv
+.uv/
+.env
+.env.local
+*.log
+.DS_Store
+data/*.pdf
+
+# Terraform
+infra/terraform/.terraform/
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.*
+infra/terraform/*.auto.tfvars

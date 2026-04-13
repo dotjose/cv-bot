@@ -1,0 +1,52 @@
+SUMMARY
+
+Senior Full-Stack Engineer & Founding Engineer with 8+ years of experience building scalable backend systems, distributed architectures, and AI-powered applications.
+
+Specialized in Node.js, NestJS, React, cloud-native systems, microservices, and event-driven architectures (Kafka, Redis).
+
+Proven experience in fintech systems, blockchain integrations, and AI-enhanced platforms including compliance automation, risk scoring, and real-time transaction systems.
+
+Currently Co-founder & Founding Engineer at Habesha Network (habeshanetwork.com): a large marketplace combining e-commerce, real estate, jobs, professional services (Angi-like pro network), community meetups, news, events, and blogging.
+
+EXPERIENCE
+
+Megenagha Bota / Habesha Network — Co-founder & Founding Engineer
+Oct 2025 – Present
+- Leading architecture and backend systems for multi-vertical marketplace infrastructure (products, properties, jobs, pros, community content).
+- Designing scalable APIs, identity systems, and service discovery.
+- Building early-stage infrastructure and core platform architecture.
+
+Sepa Cyber Technologies — Senior Full Stack Engineer
+Jul 2021 – Present
+- Built microservices using NestJS, Express, and PHP.
+- Designed distributed systems using Kafka, Redis, Docker, Kubernetes.
+- Integrated fintech APIs (Kraken, Bitgo).
+- Developed AI-powered compliance and risk systems.
+
+Kifiya Technologies — Senior QA Engineer
+May 2020 – Aug 2022
+- Built automation frameworks (Selenium, Jest, Appium).
+- Performed performance, regression, and load testing.
+
+360.Ground — Senior Full Stack Developer
+Oct 2018 – May 2020
+- Built React/Next.js SSR applications.
+- Developed REST APIs and CI/CD pipelines.
+
+Exceed IT Systems — Software Developer
+Apr 2017 – Oct 2018
+- Built microservices and CMS-based systems.
+
+AhadooTec ICT Solutions — Software Developer / Tester
+Aug 2015 – Mar 2017
+- Developed full-stack systems and QA automation frameworks.
+
+SKILLS
+
+TypeScript, JavaScript, Node.js, NestJS, React, Next.js,
+PostgreSQL, MongoDB, Redis, Kafka, AWS, Docker, Kubernetes,
+GraphQL, gRPC, System Design, DDD, CQRS, OpenAI
+
+EDUCATION
+
+BSc Computer Science — University of Gondar (2011 – 2015)

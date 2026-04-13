@@ -1,0 +1,29 @@
+{
+  "name": "@cv-bot/frontend",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "export": "next build",
+    "start": "npx --yes serve@14 out -l 3000",
+    "preview:static": "npm run start"
+  },
+  "dependencies": {
+    "@tailwindcss/postcss": "^4.2.2",
+    "clsx": "^2.1.1",
+    "next": "^15.1.0",
+    "postcss": "^8.4.31",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tailwind-merge": "^3.5.0",
+    "tailwindcss": "^4.2.2",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.1",
+    "@types/react-dom": "^19.0.1",
+    "typescript": "^5.7.2"
+  }
+}
