@@ -41,14 +41,29 @@ jobs:
       - name: Terraform init
         working-directory: infra/terraform
         env:
-          TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
+          TF_STATE_BUCKET_SECRET: ${{ secrets.TF_STATE_BUCKET }}
+          TF_STATE_BUCKET_VAR: ${{ vars.TF_STATE_BUCKET }}
+          AWS_REGION_SECRET: ${{ secrets.AWS_REGION }}
+          AWS_REGION_VAR: ${{ vars.AWS_REGION }}
         run: |
           set -e
-          if [ -z "$TF_STATE_BUCKET" ]; then
-            echo "::error::TF_STATE_BUCKET is missing in GitHub Environment secrets"
+          TF_STATE_BUCKET="${TF_STATE_BUCKET_SECRET:-}"
+          if [ -z "${TF_STATE_BUCKET// }" ]; then
+            TF_STATE_BUCKET="${TF_STATE_BUCKET_VAR:-}"
+          fi
+          if [ -z "${TF_STATE_BUCKET// }" ]; then
+            echo "::error::TF_STATE_BUCKET is not set. In GitHub: Settings → Environments → staging → add Environment secret OR Environment variable named exactly TF_STATE_BUCKET (your S3 state bucket name). Repository Actions secrets/variables with the same name are also read when the job has no matching environment value."
             exit 1
           fi
+          AWS_REGION="${AWS_REGION_SECRET:-}"
+          if [ -z "${AWS_REGION// }" ]; then
+            AWS_REGION="${AWS_REGION_VAR:-}"
+          fi
+          if [ -z "${AWS_REGION// }" ]; then
+            echo "::error::AWS_REGION is not set for terraform init -backend-config. Set Secret or Variable AWS_REGION on environment staging (same value as your AWS region, e.g. us-east-1)."
+            exit 1
+          fi
+          export TF_STATE_BUCKET AWS_REGION
           terraform init -input=false \
             -backend-config="bucket=$TF_STATE_BUCKET" \
             -backend-config="key=cv-bot/terraform.tfstate" \

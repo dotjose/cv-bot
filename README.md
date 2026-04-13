@@ -64,11 +64,15 @@ From **repo root**: `docker build -f apps/backend/Dockerfile -t <ecr-url>:<tag> 
 
 **Flow:** push to `main` → job uses GitHub Environment **`staging`** only → AWS auth → Terraform init → optional bootstrap → ECR build/tag/push `:$GITHUB_SHA` → `terraform apply` → Next static export → S3 sync → CloudFront invalidation.
 
-**Secrets (on environment `staging`):** `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `TF_STATE_BUCKET` (S3 remote state; CI uses Terraform **1.9.8**), `OPENROUTER_API_KEY`, `QDRANT_URL`, `QDRANT_API_KEY` (optional), `NEXT_PUBLIC_API_URL`.
+**Secrets (on environment `staging`):** `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `OPENROUTER_API_KEY`, `QDRANT_URL`, `QDRANT_API_KEY` (optional), `NEXT_PUBLIC_API_URL`.
+
+**Terraform state bucket:** `TF_STATE_BUCKET` must be the **exact** name of the S3 bucket that holds `terraform.tfstate`. Put it on environment **`staging`** as either an **Environment secret** or an **Environment variable** (same name `TF_STATE_BUCKET` — the bucket name is not a password, a variable is fine). The deploy job uses `environment: staging`, so values must exist on that environment (or repository Actions secrets/vars, which GitHub merges in). If the name is wrong or the value is only under “Repository secrets” while the environment has no entry, the workflow can still see repo-level secrets — if it fails, add `TF_STATE_BUCKET` explicitly under **Settings → Environments → staging**.
+
+**Terraform version:** CI pins **1.9.8** (`setup-terraform`); `infra/terraform/main.tf` has `required_version = ">= 1.9.0"`.
 
 **First deploy:** After the first successful run, open the workflow **summary** and copy **`http_api_endpoint`**. Set `NEXT_PUBLIC_API_URL` to that value, then push again so the static UI points at the live API.
 
-**GitHub OIDC role (IAM) must allow** (attach to the role assumed by Actions): Terraform state (S3 + DynamoDB lock), full Terraform CRUD on this stack, `ecr:GetAuthorizationToken` + ECR push, `s3:Sync` to the **frontend** bucket (or equivalent Put/List/Delete on that bucket prefix), `cloudfront:CreateInvalidation`, and read Terraform outputs. Lambda’s own role is created by Terraform (logs + **chat** S3 bucket `ListBucket` / `GetObject` / `PutObject` only).
+**IAM for the AWS user/role used in CI:** Terraform state in **S3**, full CRUD for this stack, `ecr:GetAuthorizationToken` + ECR push, `s3:Sync` to the **frontend** bucket, `cloudfront:CreateInvalidation`, and read Terraform outputs. Lambda’s role is created by Terraform (logs + **chat** S3 `ListBucket` / `GetObject` / `PutObject` only).
 
 **Destroy:** Actions → **Destroy** → type **`DESTROY`** → `terraform init` / **`terraform destroy -auto-approve`** (GitHub Environment **`staging`** secrets).
 
