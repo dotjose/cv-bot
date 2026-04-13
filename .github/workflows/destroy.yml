@@ -1,5 +1,3 @@
-# Manual teardown using GitHub Environment **staging** secrets (same backend as deploy).
-
 name: Destroy
 
 on:
@@ -9,6 +7,13 @@ on:
         description: "Type DESTROY to confirm"
         required: true
         type: string
+      target_env:
+        description: "Must match deployed environment (state key)"
+        type: choice
+        options:
+          - staging
+          - prod
+        required: true
 
 permissions:
   contents: read
@@ -23,8 +28,13 @@ jobs:
   destroy:
     if: github.event.inputs.confirm == 'DESTROY'
     runs-on: ubuntu-latest
-    environment: staging
     env:
+      TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      TF_STATE_KEY: ${{ github.event.inputs.target_env == 'prod' && 'cv-bot/prod.tfstate' || 'cv-bot/staging.tfstate' }}
+      TF_VAR_deployment_env: ${{ github.event.inputs.target_env }}
       TF_IN_AUTOMATION: "true"
       TF_VAR_project: cv-bot
       TF_VAR_aws_region: ${{ secrets.AWS_REGION }}
@@ -33,6 +43,19 @@ jobs:
       TF_VAR_qdrant_api_key: ${{ secrets.QDRANT_API_KEY }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Guard (required secrets)
+        run: |
+          set -e
+          missing=""
+          [ -z "${TF_STATE_BUCKET:-}" ] && missing="${missing} TF_STATE_BUCKET"
+          [ -z "${AWS_REGION:-}" ] && missing="${missing} AWS_REGION"
+          [ -z "${AWS_ACCESS_KEY_ID:-}" ] && missing="${missing} AWS_ACCESS_KEY_ID"
+          [ -z "${AWS_SECRET_ACCESS_KEY:-}" ] && missing="${missing} AWS_SECRET_ACCESS_KEY"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing:${missing}"
+            exit 1
+          fi
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -45,39 +68,13 @@ jobs:
           terraform_version: "1.9.8"
           terraform_wrapper: false
 
-      - name: Check Terraform version
-        run: terraform version
-
       - name: Terraform init
         working-directory: infra/terraform
-        env:
-          TF_STATE_BUCKET_SECRET: ${{ secrets.TF_STATE_BUCKET }}
-          TF_STATE_BUCKET_VAR: ${{ vars.TF_STATE_BUCKET }}
-          AWS_REGION_SECRET: ${{ secrets.AWS_REGION }}
-          AWS_REGION_VAR: ${{ vars.AWS_REGION }}
         run: |
-          set -e
-          TF_STATE_BUCKET="${TF_STATE_BUCKET_SECRET:-}"
-          if [ -z "${TF_STATE_BUCKET// }" ]; then
-            TF_STATE_BUCKET="${TF_STATE_BUCKET_VAR:-}"
-          fi
-          if [ -z "${TF_STATE_BUCKET// }" ]; then
-            echo "::error::TF_STATE_BUCKET is not set. Add Environment secret or variable TF_STATE_BUCKET on staging (S3 bucket name for Terraform state)."
-            exit 1
-          fi
-          AWS_REGION="${AWS_REGION_SECRET:-}"
-          if [ -z "${AWS_REGION// }" ]; then
-            AWS_REGION="${AWS_REGION_VAR:-}"
-          fi
-          if [ -z "${AWS_REGION// }" ]; then
-            echo "::error::AWS_REGION is not set for terraform init. Set on environment staging."
-            exit 1
-          fi
-          export TF_STATE_BUCKET AWS_REGION
           terraform init -input=false \
-            -backend-config="bucket=$TF_STATE_BUCKET" \
-            -backend-config="key=cv-bot/terraform.tfstate" \
-            -backend-config="region=$AWS_REGION" \
+            -backend-config="bucket=${TF_STATE_BUCKET}" \
+            -backend-config="key=${TF_STATE_KEY}" \
+            -backend-config="region=${AWS_REGION}" \
             -backend-config="encrypt=true"
 
       - name: Terraform destroy

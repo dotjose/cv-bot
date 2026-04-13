@@ -10,9 +10,9 @@
 | `apps/backend/` | FastAPI + **uv** (`pyproject.toml`, `uv.lock`, `Dockerfile`) |
 | `packages/prompts/`, `packages/rag/`, `packages/memory/` | Shared Python libraries |
 | `data/` | CV / LinkedIn / summary / website / profile JSON |
-| `infra/terraform/` | `main.tf`, `variables.tf`, `outputs.tf`, `terraform.tfvars` (MVP AWS stack) |
-| `.github/workflows/deploy.yml` | Push to `main` → build image (`:${GITHUB_SHA}`), Terraform apply, S3 + CloudFront |
-| `.github/workflows/destroy.yml` | Manual destroy (type `DESTROY` to confirm) |
+| `infra/terraform/` | Single root module: S3, ECR, Lambda, HTTP API, CloudFront (no child modules; reproducible from empty AWS + state bucket) |
+| `.github/workflows/deploy.yml` | Push `main` / `production` → static AWS keys → `terraform init` (S3 only) → **apply (full stack)** → ECR push → **apply (Lambda image)** → `outputs.json` → Next → S3 → CF |
+| `.github/workflows/destroy.yml` | Manual destroy: confirm + **staging** / **prod** |
 
 ## Prerequisites
 
@@ -60,20 +60,44 @@ npm run export
 
 From **repo root**: `docker build -f apps/backend/Dockerfile -t <ecr-url>:<tag> .` — uses **`uv sync --frozen`**. Production images are built only in **GitHub Actions** with tag **`${{ github.sha }}`** (not `:latest`-only).
 
-## Deploy (MVP — GitHub Actions only)
+## Deploy (GitHub Actions + Terraform — MVP)
 
-**Flow:** push to `main` → job uses GitHub Environment **`staging`** only → AWS auth → Terraform init → optional bootstrap → ECR build/tag/push `:$GITHUB_SHA` → `terraform apply` → Next static export → S3 sync → CloudFront invalidation.
+**One-time (AWS console):** create an empty S3 bucket for **Terraform state only** (name is your `TF_STATE_BUCKET` secret). No other manual AWS steps.
 
-**Secrets (on environment `staging`):** `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `OPENROUTER_API_KEY`, `QDRANT_URL`, `QDRANT_API_KEY` (optional), `NEXT_PUBLIC_API_URL`.
+**S3 app buckets (Terraform):**
 
-**Terraform state bucket:** `TF_STATE_BUCKET` must be the **exact** name of the S3 bucket that holds `terraform.tfstate`. Put it on environment **`staging`** as either an **Environment secret** or an **Environment variable** (same name `TF_STATE_BUCKET` — the bucket name is not a password, a variable is fine). The deploy job uses `environment: staging`, so values must exist on that environment (or repository Actions secrets/vars, which GitHub merges in). If the name is wrong or the value is only under “Repository secrets” while the environment has no entry, the workflow can still see repo-level secrets — if it fails, add `TF_STATE_BUCKET` explicitly under **Settings → Environments → staging**.
+| Bucket | Pattern | Purpose |
+|--------|---------|---------|
+| Frontend | `cv-bot-{staging\|prod}-frontend` | Next `out/` · private · CloudFront OAC only |
+| Memory | `cv-bot-{staging\|prod}-memory` | Chat JSON at `chat/{sessionId}.json` · private · Lambda IAM only (`ListBucket`, `GetObject`, `PutObject`) |
 
-**Terraform version:** CI pins **1.9.8** (`setup-terraform`); `infra/terraform/main.tf` has `required_version = ">= 1.9.0"`.
+`{staging\|prod}` comes from `TF_VAR_deployment_env` (`main` → `staging`, `production` branch → `prod`). ECR repo is `cv-bot-{env}-api`; Lambda uses a public AWS base image on the first apply until CI pushes your image and reapplies.
 
-**First deploy:** After the first successful run, open the workflow **summary** and copy **`http_api_endpoint`**. Set `NEXT_PUBLIC_API_URL` to that value, then push again so the static UI points at the live API.
+**Remote state keys**
 
-**IAM for the AWS user/role used in CI:** Terraform state in **S3**, full CRUD for this stack, `ecr:GetAuthorizationToken` + ECR push, `s3:Sync` to the **frontend** bucket, `cloudfront:CreateInvalidation`, and read Terraform outputs. Lambda’s role is created by Terraform (logs + **chat** S3 `ListBucket` / `GetObject` / `PutObject` only).
+| Branch | `TF_VAR_deployment_env` | State object key |
+|--------|-------------------------|------------------|
+| `main` | `staging` | `cv-bot/staging.tfstate` |
+| `production` | `prod` | `cv-bot/prod.tfstate` |
 
-**Destroy:** Actions → **Destroy** → type **`DESTROY`** → `terraform init` / **`terraform destroy -auto-approve`** (GitHub Environment **`staging`** secrets).
+**CI pipeline:** `terraform init` (S3 backend, **no DynamoDB**) → **`terraform apply`** (creates S3, ECR, CloudFront, API Gateway, Lambda with a placeholder image if `lambda_image_uri` is unset) → ECR login + **`aws ecr describe-repositories`** (`cv-bot-{env}-api`) → Docker + ECR (`:${GITHUB_SHA}`) → **`terraform apply -var=lambda_image_uri=...`** → **`terraform output -json` once** → Next build (`NEXT_PUBLIC_API_URL` from `http_api_endpoint`) → `s3 sync` + CloudFront invalidation.
 
-Terraform layout: `infra/terraform/main.tf` (all resources), `variables.tf`, `outputs.tf`, `terraform.tfvars` (safe defaults; CI overrides `enable_api` and `lambda_image_uri`).
+**Required GitHub secrets:** `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `TF_STATE_BUCKET`.
+
+**No DynamoDB / `TF_LOCK_TABLE`:** not supported in this MVP pipeline. Optional app secrets: `OPENROUTER_API_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`.
+
+**Lambda:** image URI uses commit SHA; function is **published**; HTTP API targets the **`live`** alias.
+
+**IAM for CI user:** state bucket read/write, CRUD for this stack, `ecr:DescribeRepositories` + ECR push, S3 sync to **frontend** bucket, CloudFront invalidation.
+
+**Terraform version:** CI uses **1.9.8** (`required_version = ">= 1.9.0"`).
+
+**Local frontend:** `apps/frontend/.env.local.example` → `.env.local`.
+
+**Destroy:** Actions → **Destroy** → pick **staging** or **prod** → type **`DESTROY`** → `terraform destroy -auto-approve` (uses matching state key).
+
+**Note:** Bucket names are **deterministic** (no random suffix). Changing `deployment_env` or migrating from older random bucket names can force bucket replacement — prefer fresh accounts or coordinated state/bucket cleanup.
+
+**Terraform outputs (root):** `frontend_bucket`, `memory_bucket`, `ecr_repository_url`, `http_api_endpoint`, `cloudfront_distribution_id`.
+
+**State migration:** If you still have state from the old `module.bootstrap` / `module.app` layout, point CI at a **new** `TF_STATE_KEY` (or run manual `terraform state` surgery); resource addresses and bucket names changed.
