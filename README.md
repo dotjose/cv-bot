@@ -62,14 +62,14 @@ From **repo root**: `docker build -f apps/backend/Dockerfile -t <ecr-url>:<tag> 
 
 ## Deploy (MVP — GitHub Actions only)
 
-**Flow:** push to `main` uses GitHub Environment **`staging`**; push branch **`production`** uses **`prod`**. Each job resolves **only** that environment’s secrets → AWS auth → Terraform init → optional bootstrap → ECR build/tag/push `:$GITHUB_SHA` → `terraform apply` → Next static export → S3 sync → CloudFront invalidation.
+**Flow:** push to `main` → job uses GitHub Environment **`staging`** only → AWS auth → Terraform init → optional bootstrap → ECR build/tag/push `:$GITHUB_SHA` → `terraform apply` → Next static export → S3 sync → CloudFront invalidation.
 
-**Secrets (per environment `staging` / `prod` — not repository-level for AWS):** `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`; optional `AWS_ROLE_ARN` (if set, OIDC is used instead of the access keys). Also: `TF_STATE_BUCKET`, `TF_LOCK_TABLE`, `OPENROUTER_API_KEY`, `QDRANT_URL`, `QDRANT_API_KEY` (optional), `NEXT_PUBLIC_API_URL`.
+**Secrets (on environment `staging`):** `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `TF_STATE_BUCKET`, `TF_LOCK_TABLE`, `OPENROUTER_API_KEY`, `QDRANT_URL`, `QDRANT_API_KEY` (optional), `NEXT_PUBLIC_API_URL`.
 
 **First deploy:** After the first successful run, open the workflow **summary** and copy **`http_api_endpoint`**. Set `NEXT_PUBLIC_API_URL` to that value, then push again so the static UI points at the live API.
 
 **GitHub OIDC role (IAM) must allow** (attach to the role assumed by Actions): Terraform state (S3 + DynamoDB lock), full Terraform CRUD on this stack, `ecr:GetAuthorizationToken` + ECR push, `s3:Sync` to the **frontend** bucket (or equivalent Put/List/Delete on that bucket prefix), `cloudfront:CreateInvalidation`, and read Terraform outputs. Lambda’s own role is created by Terraform (logs + **chat** S3 bucket `ListBucket` / `GetObject` / `PutObject` only).
 
-**Destroy:** Actions → **Destroy** → choose **target environment** (`staging` or `prod`) → type **`DESTROY`** → `terraform init` / **`terraform destroy -auto-approve`** using that environment’s secrets.
+**Destroy:** Actions → **Destroy** → type **`DESTROY`** → `terraform init` / **`terraform destroy -auto-approve`** (GitHub Environment **`staging`** secrets).
 
 Terraform layout: `infra/terraform/main.tf` (all resources), `variables.tf`, `outputs.tf`, `terraform.tfvars` (safe defaults; CI overrides `enable_api` and `lambda_image_uri`).

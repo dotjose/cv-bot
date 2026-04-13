@@ -1,21 +1,18 @@
-# Push main → GitHub Environment **staging**; push production → **prod**.
-# All AWS and TF secrets must live on that Environment (not repository-level).
+# Push main → GitHub Environment **staging** (AWS + TF secrets on that environment only).
 
 name: Deploy
 
 on:
   push:
-    branches: [main, production]
+    branches: [main]
 
 permissions:
-  id-token: write
   contents: read
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/production'
-    environment: ${{ github.ref == 'refs/heads/production' && 'prod' || 'staging' }}
+    environment: staging
     env:
       TF_IN_AUTOMATION: "true"
       IMAGE_TAG: ${{ github.sha }}
@@ -27,47 +24,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Validate AWS environment secrets (fail fast)
-        id: aws_auth
-        shell: bash
-        env:
-          GH_ENV_NAME: ${{ github.ref == 'refs/heads/production' && 'prod' || 'staging' }}
-        run: |
-          set -euo pipefail
-          err() {
-            echo "::error::Missing required AWS environment secrets in ${GH_ENV_NAME} environment: $1"
-            exit 1
-          }
-          r="${{ secrets.AWS_REGION }}"
-          [ -n "${r// }" ] || err "AWS_REGION is empty"
-          k="${{ secrets.AWS_ACCESS_KEY_ID }}"
-          [ -n "${k// }" ] || err "AWS_ACCESS_KEY_ID is empty"
-          s="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-          [ -n "${s// }" ] || err "AWS_SECRET_ACCESS_KEY is empty"
-          role="${{ secrets.AWS_ROLE_ARN }}"
-          if [ -n "${role// }" ]; then
-            echo "mode=oidc" >> "$GITHUB_OUTPUT"
-          else
-            echo "mode=keys" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Configure AWS credentials (OIDC)
-        if: steps.aws_auth.outputs.mode == 'oidc'
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Configure AWS credentials (access keys)
-        if: steps.aws_auth.outputs.mode == 'keys'
-        uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Require remote state configuration
-        run: test -n "${{ secrets.TF_STATE_BUCKET }}" && test -n "${{ secrets.TF_LOCK_TABLE }}"
 
       - uses: hashicorp/setup-terraform@v3
         with:
@@ -108,7 +69,6 @@ jobs:
           ECR_URI: ${{ steps.ecr.outputs.repository_url }}
         run: |
           set -e
-          test -n "$ECR_URI"
           docker tag "cv-bot:${IMAGE_TAG}" "${ECR_URI}:${IMAGE_TAG}"
           docker push "${ECR_URI}:${IMAGE_TAG}"
           echo "LAMBDA_IMAGE_URI=${ECR_URI}:${IMAGE_TAG}" >> "$GITHUB_ENV"
