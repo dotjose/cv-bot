@@ -64,7 +64,7 @@ From **repo root**: `docker build -f apps/backend/Dockerfile -t <ecr-url>:<tag> 
 
 **Flow:** push to `main` → job uses GitHub Environment **`staging`** only → AWS auth → Terraform init → optional bootstrap → ECR build/tag/push `:$GITHUB_SHA` → `terraform apply` → Next static export → S3 sync → CloudFront invalidation.
 
-**Secrets (on environment `staging`):** `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `TF_STATE_BUCKET` (S3 remote state; native lockfile via Terraform ≥ 1.10 — no DynamoDB), `OPENROUTER_API_KEY`, `QDRANT_URL`, `QDRANT_API_KEY` (optional), `NEXT_PUBLIC_API_URL`.
+**Secrets (on environment `staging`):** `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `TF_STATE_BUCKET` (S3 remote state; CI uses Terraform **1.9.8**), `OPENROUTER_API_KEY`, `QDRANT_URL`, `QDRANT_API_KEY` (optional), `NEXT_PUBLIC_API_URL`.
 
 **First deploy:** After the first successful run, open the workflow **summary** and copy **`http_api_endpoint`**. Set `NEXT_PUBLIC_API_URL` to that value, then push again so the static UI points at the live API.
 

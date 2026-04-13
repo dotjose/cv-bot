@@ -3,12 +3,11 @@
 # -----------------------------------------------------------------------------
 
 terraform {
-  required_version = ">= 1.10.0"
+  required_version = ">= 1.9.0"
 
   backend "s3" {
-    key          = "cv-bot/terraform.tfstate"
-    encrypt      = true
-    use_lockfile = true
+    key     = "cv-bot/terraform.tfstate"
+    encrypt = true
   }
 
   required_providers {
