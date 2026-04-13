@@ -1,8 +1,8 @@
 # Push main → OIDC → Terraform (init + optional bootstrap) → ECR image :${{ github.sha }} →
 # terraform apply (Lambda in-place image update) → Next static export → S3 sync → CloudFront invalidation.
 #
-# Secrets: AWS_REGION (required — single source for AWS CLI + Terraform provider region),
-#          AWS_ROLE_ARN (OIDC) **or** AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY,
+# AWS_REGION: repository Secret and/or Variable (same name). Secret wins if both are set.
+# Other secrets: AWS_ROLE_ARN (OIDC) **or** AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY,
 #          TF_STATE_BUCKET, TF_LOCK_TABLE,
 #          OPENROUTER_API_KEY, QDRANT_URL, QDRANT_API_KEY (optional), NEXT_PUBLIC_API_URL
 #
@@ -23,7 +23,6 @@ env:
   TF_IN_AUTOMATION: "true"
   IMAGE_TAG: ${{ github.sha }}
   TF_VAR_project: cv-bot
-  TF_VAR_aws_region: ${{ secrets.AWS_REGION }}
   TF_VAR_openrouter_api_key: ${{ secrets.OPENROUTER_API_KEY }}
   TF_VAR_qdrant_url: ${{ secrets.QDRANT_URL }}
   TF_VAR_qdrant_api_key: ${{ secrets.QDRANT_API_KEY }}
@@ -42,8 +41,13 @@ jobs:
           err() { echo "::error::$1"; exit 1; }
           region="${{ secrets.AWS_REGION }}"
           if [ -z "${region// }" ]; then
-            err "GitHub Actions secret AWS_REGION is missing or empty. Add a repository secret named exactly AWS_REGION (e.g. us-east-1). Do not rely on Terraform tfvars for this — the AWS SDK and configure-aws-credentials require it here."
+            region="${{ vars.AWS_REGION }}"
           fi
+          if [ -z "${region// }" ]; then
+            err "AWS_REGION is empty. Under Settings → Secrets and variables → Actions, add either a Secret named AWS_REGION or a Variable named AWS_REGION (e.g. us-east-1). If you use an Environment, attach the same secret/variable to that environment and set \`environment:\` on this job."
+          fi
+          echo "region=${region}" >> "$GITHUB_OUTPUT"
+          echo "TF_VAR_aws_region=${region}" >> "$GITHUB_ENV"
           role="${{ secrets.AWS_ROLE_ARN }}"
           ak="${{ secrets.AWS_ACCESS_KEY_ID }}"
           sk="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
@@ -62,7 +66,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ steps.aws_auth.outputs.region }}
 
       - name: Configure AWS credentials (access keys)
         if: steps.aws_auth.outputs.mode == 'keys'
@@ -70,7 +74,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ steps.aws_auth.outputs.region }}
 
       - name: Require remote state configuration
         run: test -n "${{ secrets.TF_STATE_BUCKET }}" && test -n "${{ secrets.TF_LOCK_TABLE }}"
@@ -85,7 +89,7 @@ jobs:
           terraform init -input=false
           -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}"
           -backend-config="key=cv-bot/terraform.tfstate"
-          -backend-config="region=${{ secrets.AWS_REGION }}"
+          -backend-config="region=${{ steps.aws_auth.outputs.region }}"
           -backend-config="dynamodb_table=${{ secrets.TF_LOCK_TABLE }}"
           -backend-config="encrypt=true"
 
