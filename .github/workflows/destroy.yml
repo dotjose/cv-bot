@@ -35,9 +35,39 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: aws-actions/configure-aws-credentials@v4
+      - name: Validate AWS secrets (fail fast)
+        shell: bash
+        run: |
+          set -euo pipefail
+          err() { echo "::error::$1"; exit 1; }
+          region="${{ secrets.AWS_REGION }}"
+          if [ -z "${region// }" ]; then
+            err "GitHub Actions secret AWS_REGION is missing or empty. Add repository secret AWS_REGION (e.g. us-east-1)."
+          fi
+          role="${{ secrets.AWS_ROLE_ARN }}"
+          ak="${{ secrets.AWS_ACCESS_KEY_ID }}"
+          sk="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+          if [ -n "${role// }" ]; then
+            echo "AWS auth: OIDC (AWS_ROLE_ARN)."
+          elif [ -n "${ak// }" ] && [ -n "${sk// }" ]; then
+            echo "AWS auth: static credentials (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY)."
+          else
+            err "Set either AWS_ROLE_ARN (OIDC) or both AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY."
+          fi
+
+      - name: Configure AWS credentials (OIDC)
+        if: ${{ secrets.AWS_ROLE_ARN != '' }}
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Configure AWS credentials (access keys)
+        if: ${{ secrets.AWS_ROLE_ARN == '' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Require remote state configuration
