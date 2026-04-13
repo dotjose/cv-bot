@@ -1,4 +1,4 @@
-# CV Bot — serverless AI CV chat (monorepo)
+# CV Bot — serverless AI CV chat
 
 **Frontend:** Next.js static export → S3 + CloudFront. **Backend:** FastAPI on AWS Lambda (container). **AI:** OpenRouter only. **RAG:** Qdrant. **Memory:** S3.
 
