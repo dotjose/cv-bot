@@ -1,23 +1,25 @@
-FROM public.ecr.aws/lambda/python:3.12
+# Build from monorepo root:
+#   docker build -f apps/backend/Dockerfile -t <ecr>:<tag> .
+#
+# Uses AWS Lambda Python base (includes runtime + awslambdaric). Installs app deps on top
+# via `uv pip install` (no `pip sync` / no full env replace — avoids breaking awslambdaric).
+
+FROM public.ecr.aws/lambda/python:3.11
 
 COPY --from=ghcr.io/astral-sh/uv:0.6.14 /uv /usr/local/bin/uv
 
 WORKDIR ${LAMBDA_TASK_ROOT}
 
-ENV UV_PYTHON=/var/lang/bin/python3.12 \
-    UV_LINK_MODE=copy
+COPY apps/backend/requirements.txt .
 
-COPY apps/backend/pyproject.toml apps/backend/uv.lock ./
-
-RUN uv export --frozen --no-dev --no-annotate --no-hashes --no-emit-project -o /tmp/requirements.txt && \
-    uv pip sync \
-      --python /var/lang/bin/python3.12 \
-      --system \
-      --break-system-packages \
-      --link-mode copy \
-      --no-build \
-      /tmp/requirements.txt && \
-    rm -f /tmp/requirements.txt
+# --system + --break-system-packages: install into Lambda’s /var/lang Python (PEP 668).
+# --no-build: wheels only (no numpy/gcc). Falls back: pip install --only-binary=:all: -r requirements.txt
+RUN uv pip install \
+    --python /var/lang/bin/python3.11 \
+    --system \
+    --break-system-packages \
+    --no-build \
+    -r requirements.txt
 
 COPY apps/backend/app ./app
 COPY apps/backend/README.md ./README.md
