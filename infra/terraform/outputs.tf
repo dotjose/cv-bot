@@ -1,6 +1,6 @@
 output "frontend_bucket" {
-  value       = aws_s3_bucket.frontend.id
-  description = "Next.js static export target."
+  value       = aws_s3_bucket.frontend.bucket
+  description = "Next.js static export target (S3 bucket name)."
 }
 
 output "memory_bucket" {
@@ -30,5 +30,10 @@ output "distribution_id" {
 
 output "cloudfront_domain_name" {
   value       = aws_cloudfront_distribution.frontend.domain_name
-  description = "Public site: https://<this-value> (not cloudfront.amazonaws.com)."
+  description = "Hostname only; prefer output cloudfront_url for the full https:// link."
+}
+
+output "cloudfront_url" {
+  value       = "https://${aws_cloudfront_distribution.frontend.domain_name}"
+  description = "Public CloudFront website URL"
 }

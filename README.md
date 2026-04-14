@@ -109,6 +109,6 @@ Optional per environment: `OPENROUTER_API_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`.
 
 **Note:** Bucket names are **deterministic** (no random suffix). Changing `deployment_env` or migrating from older random bucket names can force bucket replacement — prefer fresh accounts or coordinated state/bucket cleanup.
 
-**Terraform outputs (root):** `frontend_bucket`, `memory_bucket`, `ecr_repository_url`, `http_api_endpoint`, `cloudfront_distribution_id`.
+**Terraform outputs (root):** `cloudfront_url` (canonical site **`https://…`**), `cloudfront_domain_name`, `frontend_bucket`, `memory_bucket`, `ecr_repository_url`, `http_api_endpoint`, `cloudfront_distribution_id`, `distribution_id`.
 
 **State migration:** If you still have state from the old `module.bootstrap` / `module.app` layout, or older `prod` / `cv-bot/prod.tfstate` naming, use a **new** state key (`cv-bot/staging.tfstate` / `cv-bot/production.tfstate`) or run manual `terraform state` surgery; `deployment_env` is now **`production`**, not `prod`, so resource names changed.

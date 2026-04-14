@@ -104,6 +104,9 @@ jobs:
         working-directory: infra/terraform
         run: terraform output -json > "${GITHUB_WORKSPACE}/outputs.json"
 
+      - name: Export CloudFront URL
+        run: echo "CLOUDFRONT_URL=$(terraform -chdir=infra/terraform output -raw cloudfront_url)" >> "$GITHUB_ENV"
+
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -133,7 +136,7 @@ jobs:
             --cache-control "public,max-age=0,must-revalidate"
           aws cloudfront create-invalidation --distribution-id "$DIST" --paths "/*"
 
-      - name: Job summary
+      - name: Show deployment URL
         run: |
-          echo "### Deployed API" >> "$GITHUB_STEP_SUMMARY"
-          echo "\`$(jq -r '.http_api_endpoint.value' "${GITHUB_WORKSPACE}/outputs.json")\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Frontend URL" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`$(terraform -chdir=infra/terraform output -raw cloudfront_url)\`" >> "$GITHUB_STEP_SUMMARY"
