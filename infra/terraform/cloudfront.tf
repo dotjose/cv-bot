@@ -6,21 +6,19 @@ resource "aws_cloudfront_origin_access_control" "frontend" {
   signing_protocol                  = "sigv4"
 }
 
+# OAC signs requests as CloudFront. No AWS:SourceArn (avoids ARN mismatch / apply-order 403s on MVP).
 data "aws_iam_policy_document" "frontend_oac" {
   statement {
     sid    = "AllowCloudFrontRead"
     effect = "Allow"
+
     principals {
       type        = "Service"
       identifiers = ["cloudfront.amazonaws.com"]
     }
+
     actions   = ["s3:GetObject"]
     resources = ["${aws_s3_bucket.frontend.arn}/*"]
-    condition {
-      test     = "StringEquals"
-      variable = "AWS:SourceArn"
-      values   = [aws_cloudfront_distribution.frontend.arn]
-    }
   }
 }
 

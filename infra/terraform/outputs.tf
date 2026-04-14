@@ -22,3 +22,13 @@ output "cloudfront_distribution_id" {
   value       = aws_cloudfront_distribution.frontend.id
   description = "CloudFront invalidation target."
 }
+
+output "distribution_id" {
+  value       = aws_cloudfront_distribution.frontend.id
+  description = "Same as cloudfront_distribution_id; use with create-invalidation."
+}
+
+output "cloudfront_domain_name" {
+  value       = aws_cloudfront_distribution.frontend.domain_name
+  description = "Public site: https://<this-value> (not cloudfront.amazonaws.com)."
+}
