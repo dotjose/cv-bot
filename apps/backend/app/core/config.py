@@ -90,4 +90,9 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    # TEMP: confirm Lambda / process env receives the key (remove after verifying deploy)
+    _raw = os.environ.get("OPENROUTER_API_KEY", "")
+    print("OPENROUTER_API_KEY length (env raw):", len(_raw), flush=True)
+    settings = Settings()
+    print("OPENROUTER_API_KEY length (settings):", len(settings.openrouter_api_key or ""), flush=True)
+    return settings

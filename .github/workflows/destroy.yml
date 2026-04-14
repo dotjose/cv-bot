@@ -44,6 +44,7 @@ jobs:
           AWS_REGION: ${{ secrets.AWS_REGION }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           set -e
           missing=""
@@ -51,6 +52,7 @@ jobs:
           [ -z "${AWS_REGION:-}" ] && missing="${missing} AWS_REGION"
           [ -z "${AWS_ACCESS_KEY_ID:-}" ] && missing="${missing} AWS_ACCESS_KEY_ID"
           [ -z "${AWS_SECRET_ACCESS_KEY:-}" ] && missing="${missing} AWS_SECRET_ACCESS_KEY"
+          [ -z "$(echo -n "${OPENROUTER_API_KEY:-}" | tr -d '[:space:]')" ] && missing="${missing} OPENROUTER_API_KEY"
           if [ -n "$missing" ]; then
             echo "::error::Missing environment secrets:${missing}"
             exit 1
