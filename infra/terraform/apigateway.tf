@@ -1,8 +1,16 @@
 resource "aws_apigatewayv2_api" "api" {
   count = local.lambda_enabled ? 1 : 0
 
-  name          = "${local.name_prefix}-http"
+  name          = "${local.name_prefix}-api"
   protocol_type = "HTTP"
+
+  cors_configuration {
+    allow_origins  = ["*"] # MVP; tighten to [terraform output cloudfront_url] later
+    allow_methods  = ["GET", "POST", "OPTIONS"]
+    allow_headers  = ["*"]
+    expose_headers = ["*"]
+    max_age        = 86400
+  }
 }
 
 resource "aws_apigatewayv2_integration" "lambda" {

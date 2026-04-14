@@ -25,13 +25,16 @@ def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(title="CV Bot API", lifespan=lifespan)
 
+    # CORS: wildcard origin cannot use credentials=True (browser + Starlette rules). API Gateway also sets CORS.
     origins = ["*"] if settings.cors_origin.strip() == "*" else [settings.cors_origin.strip()]
+    creds = origins != ["*"]
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
-        allow_credentials=True,
-        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_credentials=creds,
+        allow_methods=["*"],
         allow_headers=["*"],
+        expose_headers=["*"],
     )
 
     @app.get("/health")

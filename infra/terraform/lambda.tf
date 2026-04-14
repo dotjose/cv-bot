@@ -12,16 +12,11 @@ resource "aws_lambda_function" "api" {
 
   environment {
     variables = {
-      CHAT_S3_BUCKET   = aws_s3_bucket.memory.id
-      CHAT_S3_PREFIX   = "chat/"
-      FRONTEND_BUCKET  = aws_s3_bucket.frontend.id
-
+      CHAT_S3_BUCKET     = aws_s3_bucket.memory.bucket
+      CHAT_S3_PREFIX     = "chat/"
       OPENROUTER_API_KEY = var.openrouter_api_key
       QDRANT_URL         = var.qdrant_url
       QDRANT_API_KEY     = var.qdrant_api_key
-
-      PROJECT        = var.project
-      DEPLOYMENT_ENV = var.deployment_env
     }
   }
 
