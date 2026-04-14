@@ -27,7 +27,7 @@ variable "openrouter_api_key" {
   type        = string
   sensitive   = true
   default     = ""
-  description = "OpenRouter API key."
+  description = "OpenRouter API key (set TF_VAR_openrouter_api_key / OPENROUTER_API_KEY in CI)."
 }
 
 variable "qdrant_url" {

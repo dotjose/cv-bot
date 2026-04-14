@@ -16,8 +16,15 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1"
 
 
 def _headers(settings: Settings) -> dict[str, str]:
+    # TEMP debug — remove once OpenRouter env is verified in all environments
+    print("OPENROUTER KEY PRESENT:", bool(settings.openrouter_api_key), flush=True)
+
+    key = (settings.openrouter_api_key or "").strip()
+    if not key:
+        raise RuntimeError("Missing OPENROUTER_API_KEY")
+
     h: dict[str, str] = {
-        "Authorization": f"Bearer {settings.openrouter_api_key}",
+        "Authorization": f"Bearer {key}",
         "Content-Type": "application/json",
     }
     if settings.openrouter_site_url:

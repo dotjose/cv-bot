@@ -72,6 +72,14 @@ class Settings(BaseSettings):
 
     prompt_max_source_chars: int = Field(default=8000, validation_alias="PROMPT_MAX_SOURCE_CHARS")
 
+    @field_validator("openrouter_api_key")
+    @classmethod
+    def _openrouter_api_key_nonempty(cls, v: str) -> str:
+        s = (v or "").strip()
+        if not s:
+            raise ValueError("OPENROUTER_API_KEY is not set")
+        return s
+
     @field_validator("data_dir", mode="before")
     @classmethod
     def _coerce_data_dir(cls, v: object) -> Path:

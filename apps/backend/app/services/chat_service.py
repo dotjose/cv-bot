@@ -41,17 +41,23 @@ async def build_chat_context(
         history = [m.model_dump() for m in body.history]
 
     message = body.message.strip()
-    vecs = await llm_openrouter.embed_texts(http, settings, [message], "query")
-    if not vecs or not vecs[0]:
-        raise RuntimeError("Embedding failed")
+    vecs: list[list[float]] = []
+    try:
+        vecs = await llm_openrouter.embed_texts(http, settings, [message], "query")
+    except Exception as exc:
+        log.warning("Embeddings failed; continuing without RAG context: %s", exc)
+        vecs = []
 
-    retrieved = await retrieve_for_query(
-        settings,
-        vecs[0],
-        message,
-        top_k=settings.rag_top_k,
-        prefetch=settings.rag_prefetch,
-    )
+    if vecs and vecs[0]:
+        retrieved = await retrieve_for_query(
+            settings,
+            vecs[0],
+            message,
+            top_k=settings.rag_top_k,
+            prefetch=settings.rag_prefetch,
+        )
+    else:
+        retrieved = []
 
     cv_text, linkedin_text, summary_text, pages, profile = await asyncio.gather(
         document_service.load_cv_text(settings),
