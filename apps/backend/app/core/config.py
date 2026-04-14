@@ -1,3 +1,4 @@
+import logging
 import os
 from functools import lru_cache
 from pathlib import Path
@@ -5,6 +6,8 @@ from typing import Optional
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+log = logging.getLogger(__name__)
 
 
 def _env_file_paths() -> tuple[str, ...]:
@@ -38,7 +41,7 @@ class Settings(BaseSettings):
 
     data_dir: Path = Field(default_factory=_default_data_dir)
 
-    openrouter_api_key: str = Field(validation_alias="OPENROUTER_API_KEY")
+    openrouter_api_key: str | None = Field(default=None, validation_alias="OPENROUTER_API_KEY")
     openrouter_site_url: Optional[str] = Field(default=None, validation_alias="OPENROUTER_SITE_URL")
     openrouter_site_name: str = Field(default="cv-bot", validation_alias="OPENROUTER_SITE_NAME")
     openrouter_embedding_model: str = Field(
@@ -72,13 +75,15 @@ class Settings(BaseSettings):
 
     prompt_max_source_chars: int = Field(default=8000, validation_alias="PROMPT_MAX_SOURCE_CHARS")
 
-    @field_validator("openrouter_api_key")
+    @field_validator("openrouter_api_key", mode="before")
     @classmethod
-    def _openrouter_api_key_nonempty(cls, v: str) -> str:
-        s = (v or "").strip()
-        if not s:
-            raise ValueError("OPENROUTER_API_KEY is not set")
-        return s
+    def _openrouter_api_key_empty_as_none(cls, v: object) -> str | None:
+        if v is None:
+            return None
+        if isinstance(v, str):
+            s = v.strip()
+            return s if s else None
+        return str(v).strip() or None
 
     @field_validator("data_dir", mode="before")
     @classmethod
@@ -90,9 +95,11 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    # TEMP: confirm Lambda / process env receives the key (remove after verifying deploy)
-    _raw = os.environ.get("OPENROUTER_API_KEY", "")
-    print("OPENROUTER_API_KEY length (env raw):", len(_raw), flush=True)
-    settings = Settings()
-    print("OPENROUTER_API_KEY length (settings):", len(settings.openrouter_api_key or ""), flush=True)
-    return settings
+    s = Settings()
+    log.info(
+        "Env lengths (chars): OPENROUTER_API_KEY=%s QDRANT_URL=%s QDRANT_API_KEY=%s",
+        len(s.openrouter_api_key or ""),
+        len((s.qdrant_url or "").strip()),
+        len((s.qdrant_api_key or "").strip() if s.qdrant_api_key else ""),
+    )
+    return s

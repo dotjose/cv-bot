@@ -26,19 +26,32 @@ variable "lambda_image_uri" {
 variable "openrouter_api_key" {
   type        = string
   sensitive   = true
-  default     = ""
-  description = "OpenRouter API key for Lambda env. Prefer TF_VAR_openrouter_api_key (e.g. GitHub OPENROUTER_API_KEY) or another secret source; may be empty if injected elsewhere."
+  description = "OpenRouter API key (Lambda OPENROUTER_API_KEY). Set TF_VAR_openrouter_api_key."
+
+  validation {
+    condition     = length(trimspace(var.openrouter_api_key)) > 0
+    error_message = "OPENROUTER_API_KEY is required and cannot be empty."
+  }
 }
 
 variable "qdrant_url" {
   type        = string
-  default     = ""
-  description = "Qdrant HTTPS URL (empty string if unused)."
+  sensitive   = false
+  description = "Qdrant HTTPS URL (Lambda QDRANT_URL). Set TF_VAR_qdrant_url."
+
+  validation {
+    condition     = length(trimspace(var.qdrant_url)) > 0
+    error_message = "QDRANT_URL is required and cannot be empty."
+  }
 }
 
 variable "qdrant_api_key" {
   type        = string
   sensitive   = true
-  default     = ""
-  description = "Qdrant API key (empty string if unused)."
+  description = "Qdrant API key (Lambda QDRANT_API_KEY). Set TF_VAR_qdrant_api_key."
+
+  validation {
+    condition     = length(trimspace(var.qdrant_api_key)) > 0
+    error_message = "QDRANT_API_KEY is required and cannot be empty."
+  }
 }

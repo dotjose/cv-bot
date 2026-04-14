@@ -20,6 +20,10 @@ jobs:
       TF_VAR_project: cv-bot
       TF_STATE_KEY: ${{ github.ref == 'refs/heads/production' && 'cv-bot/production.tfstate' || 'cv-bot/staging.tfstate' }}
       TF_VAR_deployment_env: ${{ github.ref == 'refs/heads/production' && 'production' || 'staging' }}
+      TF_VAR_aws_region: ${{ secrets.AWS_REGION }}
+      TF_VAR_openrouter_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+      TF_VAR_qdrant_url: ${{ secrets.QDRANT_URL }}
+      TF_VAR_qdrant_api_key: ${{ secrets.QDRANT_API_KEY }}
     steps:
       - uses: actions/checkout@v4
 
@@ -29,7 +33,6 @@ jobs:
           AWS_REGION: ${{ secrets.AWS_REGION }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           set -e
           missing=""
@@ -41,9 +44,20 @@ jobs:
             echo "::error::Missing environment secrets (configure staging + production):${missing}"
             exit 1
           fi
-          if [ -z "$(echo -n "${OPENROUTER_API_KEY:-}" | tr -d '[:space:]')" ]; then
-            echo "::warning::OPENROUTER_API_KEY is not set in this GitHub Environment. Terraform will apply with TF_VAR_openrouter_api_key empty unless you set the secret or pass the key another way (e.g. TF_VAR / workspace vars)."
-          fi
+
+      - name: Validate required app secrets (Terraform / Lambda)
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+        run: |
+          set -e
+          echo "OPENROUTER_API_KEY length: ${#OPENROUTER_API_KEY}"
+          echo "QDRANT_URL length: ${#QDRANT_URL}"
+          echo "QDRANT_API_KEY length: ${#QDRANT_API_KEY}"
+          test -n "$(echo -n "${OPENROUTER_API_KEY:-}" | tr -d '[:space:]')" || { echo "::error::OPENROUTER_API_KEY missing or whitespace only"; exit 1; }
+          test -n "$(echo -n "${QDRANT_URL:-}" | tr -d '[:space:]')" || { echo "::error::QDRANT_URL missing"; exit 1; }
+          test -n "$(echo -n "${QDRANT_API_KEY:-}" | tr -d '[:space:]')" || { echo "::error::QDRANT_API_KEY missing or whitespace only"; exit 1; }
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -67,11 +81,6 @@ jobs:
 
       - name: Terraform apply (ECR + S3 + CloudFront + IAM; Lambda after image push)
         working-directory: infra/terraform
-        env:
-          TF_VAR_aws_region: ${{ secrets.AWS_REGION }}
-          TF_VAR_openrouter_api_key: ${{ secrets.OPENROUTER_API_KEY }}
-          TF_VAR_qdrant_url: ${{ secrets.QDRANT_URL }}
-          TF_VAR_qdrant_api_key: ${{ secrets.QDRANT_API_KEY }}
         run: terraform apply -auto-approve -var='lambda_image_uri='
 
       - uses: aws-actions/amazon-ecr-login@v2
@@ -97,11 +106,6 @@ jobs:
 
       - name: Terraform apply (Lambda + HTTP API from ECR image)
         working-directory: infra/terraform
-        env:
-          TF_VAR_aws_region: ${{ secrets.AWS_REGION }}
-          TF_VAR_openrouter_api_key: ${{ secrets.OPENROUTER_API_KEY }}
-          TF_VAR_qdrant_url: ${{ secrets.QDRANT_URL }}
-          TF_VAR_qdrant_api_key: ${{ secrets.QDRANT_API_KEY }}
         run: terraform apply -auto-approve -var="lambda_image_uri=${LAMBDA_IMAGE_URI}"
 
       - name: Export Terraform outputs (single JSON)
