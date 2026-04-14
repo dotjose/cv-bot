@@ -37,10 +37,12 @@ jobs:
           [ -z "${AWS_REGION:-}" ] && missing="${missing} AWS_REGION"
           [ -z "${AWS_ACCESS_KEY_ID:-}" ] && missing="${missing} AWS_ACCESS_KEY_ID"
           [ -z "${AWS_SECRET_ACCESS_KEY:-}" ] && missing="${missing} AWS_SECRET_ACCESS_KEY"
-          [ -z "$(echo -n "${OPENROUTER_API_KEY:-}" | tr -d '[:space:]')" ] && missing="${missing} OPENROUTER_API_KEY"
           if [ -n "$missing" ]; then
             echo "::error::Missing environment secrets (configure staging + production):${missing}"
             exit 1
+          fi
+          if [ -z "$(echo -n "${OPENROUTER_API_KEY:-}" | tr -d '[:space:]')" ]; then
+            echo "::warning::OPENROUTER_API_KEY is not set in this GitHub Environment. Terraform will apply with TF_VAR_openrouter_api_key empty unless you set the secret or pass the key another way (e.g. TF_VAR / workspace vars)."
           fi
 
       - uses: aws-actions/configure-aws-credentials@v4

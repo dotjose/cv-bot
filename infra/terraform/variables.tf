@@ -26,12 +26,8 @@ variable "lambda_image_uri" {
 variable "openrouter_api_key" {
   type        = string
   sensitive   = true
-  description = "OpenRouter API key. Set via TF_VAR_openrouter_api_key (e.g. GitHub secret OPENROUTER_API_KEY)."
-
-  validation {
-    condition     = length(trimspace(var.openrouter_api_key)) > 0
-    error_message = "openrouter_api_key is empty — set TF_VAR_openrouter_api_key / OPENROUTER_API_KEY in the environment."
-  }
+  default     = ""
+  description = "OpenRouter API key for Lambda env. Prefer TF_VAR_openrouter_api_key (e.g. GitHub OPENROUTER_API_KEY) or another secret source; may be empty if injected elsewhere."
 }
 
 variable "qdrant_url" {
