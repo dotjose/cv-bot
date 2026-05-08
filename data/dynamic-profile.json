@@ -282,16 +282,159 @@
     },
     {
       "id": "p6",
-      "title": "CV AI Chatbot",
-      "type": "AI / RAG Application",
-      "description": "AI-powered CV assistant chatbot using LLMs, structured profile reasoning, and retrieval-augmented generation workflows.",
+      "title": "CV Bot",
+      "type": "AI / Serverless RAG Application",
+      "description": "Serverless AI-powered CV assistant chatbot with a full monorepo architecture. Features a Next.js static frontend deployed on S3 + CloudFront, a FastAPI backend running on AWS Lambda as a container image, RAG via Qdrant vector search, session memory persisted in S3, and LLM routing through OpenRouter. Infrastructure is fully codified in Terraform with automated CI/CD via GitHub Actions supporting staging and production environments.",
+      "live_url": "https://d1zqcu7a2hf3hf.cloudfront.net/",
+      "repo_url": "https://github.com/dotjose/cv-bot",
+      "problem_domains": [
+        "AI / RAG Systems",
+        "Serverless Architecture",
+        "Infrastructure as Code",
+        "CI/CD Automation"
+      ],
+      "features": [
+        "RAG with Qdrant vector search",
+        "Session memory persisted in S3",
+        "LLM routing via OpenRouter",
+        "Next.js static export on S3 + CloudFront",
+        "FastAPI on AWS Lambda (container image)",
+        "Terraform-managed infra (S3, ECR, Lambda, HTTP API, CloudFront)",
+        "GitHub Actions deploy pipeline (staging + production environments)"
+      ],
       "stack": [
+        "Next.js",
+        "TypeScript",
         "Python",
-        "Streamlit",
+        "FastAPI",
         "OpenRouter",
-        "LLM",
-        "Hugging Face",
-        "RAG"
+        "Qdrant",
+        "AWS Lambda",
+        "AWS S3",
+        "CloudFront",
+        "ECR",
+        "Terraform",
+        "Docker",
+        "GitHub Actions"
+      ]
+    },
+    {
+      "id": "p7",
+      "title": "CareTriage AI",
+      "type": "AI Healthcare / Full-Stack Application",
+      "description": "Full-stack AI-powered healthcare intake and triage platform. Patients submit symptoms through a Next.js UI, which are processed by a FastAPI backend using OpenAI and rule-based triage floors to deliver structured clinical assessments. Features Clerk authentication, PostgreSQL in production with SQLite for local dev, and deployment flexibility across Vercel serverless and standalone server environments.",
+      "live_url": "https://healthcare-consultant.vercel.app",
+      "repo_url": "https://github.com/dotjose/healthcare-consultant",
+      "problem_domains": [
+        "Healthcare AI",
+        "Clinical Decision Support",
+        "Serverless Full-Stack",
+        "Authentication and Access Control"
+      ],
+      "features": [
+        "AI-driven symptom intake and triage",
+        "Rule-based triage floor logic",
+        "Clerk JWT authentication",
+        "OpenAI-powered clinical reasoning",
+        "PostgreSQL with SQLite fallback for local dev",
+        "FastAPI serverless on Vercel + standalone Render/Railway/Fly support",
+        "Next.js App Router UI"
+      ],
+      "stack": [
+        "Next.js",
+        "TypeScript",
+        "Python",
+        "FastAPI",
+        "OpenAI",
+        "Clerk",
+        "PostgreSQL",
+        "SQLite",
+        "Vercel",
+        "Tailwind CSS",
+        "shadcn/ui",
+        "uv"
+      ]
+    },
+    {
+      "id": "p8",
+      "title": "AlexFin.ai",
+      "type": "AI Financial Intelligence Platform",
+      "description": "AI financial intelligence platform featuring a Next.js frontend with Clerk auth, FastAPI on AWS Lambda via Mangum, Supabase (Postgres + pgvector), and OpenRouter LLM routing. Implements a multi-agent backend (planner, tagger, reporter), asynchronous job processing via AWS SQS, portfolio and position management, Langfuse observability, and Polygon market data integration. Fully provisioned with Terraform and released exclusively via GitHub Actions CI/CD.",
+      "repo_url": "https://github.com/dotjose/Alex-fin-ai",
+      "problem_domains": [
+        "AI Agents",
+        "Financial Analytics",
+        "Serverless Architecture",
+        "Vector Search / RAG",
+        "Infrastructure as Code"
+      ],
+      "features": [
+        "Multi-agent system (planner, tagger, reporter agents)",
+        "Portfolio and position management",
+        "AI-powered financial analysis via OpenRouter",
+        "Asynchronous job processing with AWS SQS",
+        "Supabase Postgres + pgvector for vector search",
+        "Polygon market data integration",
+        "Langfuse observability and LLM tracing",
+        "Clerk JWT authentication",
+        "Terraform-managed AWS infra (Lambda, SQS, S3, CloudFront, ECR)",
+        "GitHub Actions CI/CD (test → image → Terraform → S3 → CloudFront)"
+      ],
+      "stack": [
+        "Next.js",
+        "TypeScript",
+        "Python",
+        "FastAPI",
+        "Mangum",
+        "OpenRouter",
+        "Supabase",
+        "PostgreSQL",
+        "pgvector",
+        "AWS Lambda",
+        "AWS SQS",
+        "AWS S3",
+        "CloudFront",
+        "ECR",
+        "Clerk",
+        "Langfuse",
+        "Terraform",
+        "Docker",
+        "GitHub Actions"
+      ]
+    },
+    {
+      "id": "p9",
+      "title": "BidForge",
+      "type": "AI Proposal Generation Platform",
+      "description": "AI-powered proposal generation platform that transforms client briefs — from formal RFPs to short job posts — into structured, editable proposals. Features a 5-node proposal DAG (Draft, Review, Timeline, Insights, Memory), dual Enterprise and Freelance win modes, and a reusable intelligence library that strengthens future drafts from saved past wins. Built as a Turborepo monorepo with Next.js frontend and FastAPI backend.",
+      "live_url": "https://bidforge-api-three.vercel.app",
+      "repo_url": "https://github.com/dotjose/bidforge",
+      "problem_domains": [
+        "AI Agents / DAG Workflows",
+        "Document Generation",
+        "Business Productivity",
+        "RAG / Memory Systems"
+      ],
+      "features": [
+        "5-node proposal generation DAG (Draft, Review, Timeline, Insights, Memory)",
+        "Enterprise (long-form sectioned) and Freelance (concise hook-first) proposal modes",
+        "AI-generated draft, review analysis, timeline, and insights",
+        "Intelligence library for reusable language from past wins",
+        "Clerk authentication",
+        "FastAPI serverless backend (Vercel + standalone uvicorn)",
+        "Next.js App Router product UI",
+        "Turborepo monorepo with shared agents, prompts, schemas, and web-sdk packages"
+      ],
+      "stack": [
+        "Next.js",
+        "TypeScript",
+        "Python",
+        "FastAPI",
+        "Clerk",
+        "Turborepo",
+        "Vercel",
+        "Tailwind CSS",
+        "uv"
       ]
     }
   ],
