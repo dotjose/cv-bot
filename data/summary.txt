@@ -17,7 +17,7 @@ Oct 2025 – Present
 - Building early-stage infrastructure and core platform architecture.
 
 Sepa Cyber Technologies — Senior Full Stack Engineer
-Jul 2021 – Present
+Jul 2021 – Oct 2025
 - Built microservices using NestJS, Express, and PHP.
 - Designed distributed systems using Kafka, Redis, Docker, Kubernetes.
 - Integrated fintech APIs (Kraken, Bitgo).
