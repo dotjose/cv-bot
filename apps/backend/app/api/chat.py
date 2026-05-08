@@ -24,6 +24,19 @@ def _session_id(request: Request) -> str | None:
     settings = get_settings()
     return request.headers.get(settings.chat_session_header)
 
+def _request_id(request: Request) -> str:
+    # Prefer upstream IDs; otherwise mint one for log correlation.
+    for k in (
+        "x-request-id",
+        "x-amzn-requestid",
+        "x-amz-request-id",
+        "x-amzn-trace-id",
+    ):
+        v = request.headers.get(k)
+        if v and v.strip():
+            return v.strip()
+    return str(uuid.uuid4())
+
 
 @router.post("/chat/reset")
 async def chat_reset() -> dict[str, bool]:
@@ -83,9 +96,10 @@ async def chat(request: Request, body: ChatRequestBody) -> StreamingResponse:
 
     http_client: httpx.AsyncClient = request.app.state.http
     sid = _session_id(request)
+    rid = _request_id(request)
 
     try:
-        ctx = await chat_service.build_chat_context(settings, http_client, body, sid)
+        ctx = await chat_service.build_chat_context(settings, http_client, body, sid, request_id=rid)
     except RuntimeError as e:
         if str(e) == "Embedding failed":
             return JSONResponse(status_code=502, content={"error": "Embedding failed"})

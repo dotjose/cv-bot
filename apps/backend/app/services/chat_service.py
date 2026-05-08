@@ -32,6 +32,8 @@ async def build_chat_context(
     http: httpx.AsyncClient,
     body: ChatRequestBody,
     session_id: str | None,
+    *,
+    request_id: str | None = None,
 ) -> ChatContext:
     srv_hist = await memory_s3.load_chat_messages_with_meta(settings, session_id)
     if srv_hist is not None:
@@ -49,13 +51,23 @@ async def build_chat_context(
         vecs = []
 
     if vecs and vecs[0]:
-        retrieved = await retrieve_for_query(
-            settings,
-            vecs[0],
-            message,
-            top_k=settings.rag_top_k,
-            prefetch=settings.rag_prefetch,
-        )
+        # Retrieval must be production-safe: never crash chat flow.
+        try:
+            retrieved = await retrieve_for_query(
+                settings,
+                vecs[0],
+                message,
+                top_k=settings.rag_top_k,
+                prefetch=settings.rag_prefetch,
+                request_id=request_id,
+            )
+        except Exception as exc:
+            log.warning(
+                "RAG retrieval failed; continuing without context request_id=%s reason=%s",
+                request_id or "",
+                exc.__class__.__name__,
+            )
+            retrieved = []
     else:
         retrieved = []
 

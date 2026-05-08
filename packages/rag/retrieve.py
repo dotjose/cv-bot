@@ -5,10 +5,10 @@ Qdrant vector retrieval — scoring/dedup unchanged (collection ``cv_bot_chunks`
 from __future__ import annotations
 
 import logging
+import math
 import re
 from typing import Any, Protocol
 
-import httpx
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.http.exceptions import UnexpectedResponse
 
@@ -17,6 +17,7 @@ from rag.types import ChunkType, RetrievedContext
 logger = logging.getLogger(__name__)
 
 COLLECTION_NAME = "cv_bot_chunks"
+DEFAULT_QDRANT_TIMEOUT_S = 6.0
 
 # Truth priority when blending vector score with source (website > cv > linkedin > summary).
 SOURCE_TRUTH_WEIGHT: dict[str, float] = {
@@ -117,6 +118,51 @@ def _select_diverse(
     return out
 
 
+def _safe_log_warning(
+    msg: str,
+    *,
+    request_id: str | None,
+    query: str | None,
+    failure_reason: str,
+    collection_name: str = COLLECTION_NAME,
+) -> None:
+    # Keep logs concise and CloudWatch-friendly (avoid stack traces for expected failures).
+    logger.warning(
+        "%s collection=%s request_id=%s query=%s reason=%s",
+        msg,
+        collection_name,
+        request_id or "",
+        (query or "")[:240],
+        failure_reason,
+    )
+
+
+def _is_valid_vector(v: list[float]) -> bool:
+    if not v:
+        return False
+    # Defensive: ensure floats are finite. (NaN/Inf can crash or yield undefined behavior server-side.)
+    for x in v:
+        try:
+            xf = float(x)
+        except Exception:
+            return False
+        if not math.isfinite(xf):
+            return False
+    return True
+
+
+def _qdrant_kwargs(settings: RagSettings, *, timeout_s: float) -> dict[str, Any]:
+    kwargs: dict[str, Any] = {
+        "url": (settings.qdrant_url or "").strip(),
+        "timeout": timeout_s,
+        # Avoid extra round-trips on cold starts and noisy warnings when a proxy blocks version endpoints.
+        "check_compatibility": False,
+    }
+    if settings.qdrant_api_key and settings.qdrant_api_key.strip():
+        kwargs["api_key"] = settings.qdrant_api_key.strip()
+    return kwargs
+
+
 async def retrieve_for_query(
     settings: RagSettings,
     query_vector: list[float],
@@ -124,16 +170,56 @@ async def retrieve_for_query(
     *,
     top_k: int | None = None,
     prefetch: int | None = None,
+    request_id: str | None = None,
+    timeout_s: float = DEFAULT_QDRANT_TIMEOUT_S,
 ) -> list[RetrievedContext]:
-    prefetch = prefetch if prefetch is not None else settings.rag_prefetch
-    top_k = top_k if top_k is not None else settings.rag_top_k
-    weights = query_intent_weights(query_text)
-    kwargs: dict[str, Any] = {"url": settings.qdrant_url}
-    if settings.qdrant_api_key:
-        kwargs["api_key"] = settings.qdrant_api_key
-    client = AsyncQdrantClient(**kwargs)
+    """
+    Production-safe retrieval:
+    - Never raises (returns [] on any failure)
+    - Uses official AsyncQdrantClient only (no raw REST fallbacks)
+    - Tight timeouts to avoid Lambda tail latency
+    """
+    q = (query_text or "").strip()
+
+    # Config validation (non-fatal).
+    if not (settings.qdrant_url or "").strip():
+        _safe_log_warning(
+            "Qdrant disabled (missing QDRANT_URL)",
+            request_id=request_id,
+            query=q,
+            failure_reason="missing_qdrant_url",
+        )
+        return []
+    if not (settings.qdrant_api_key or "").strip():
+        # Some local deployments may not need an API key; keep it as a warning.
+        _safe_log_warning(
+            "Qdrant API key missing; retrieval may fail",
+            request_id=request_id,
+            query=q,
+            failure_reason="missing_qdrant_api_key",
+        )
+
+    # Input validation (non-fatal).
+    if not q:
+        return []
+    if not _is_valid_vector(query_vector):
+        _safe_log_warning(
+            "Invalid query vector; continuing without RAG",
+            request_id=request_id,
+            query=q,
+            failure_reason="invalid_vector",
+        )
+        return []
+
+    prefetch = int(prefetch if prefetch is not None else settings.rag_prefetch)
+    top_k = int(top_k if top_k is not None else settings.rag_top_k)
+    if prefetch <= 0 or top_k <= 0:
+        return []
+
+    weights = query_intent_weights(q)
+    client = AsyncQdrantClient(**_qdrant_kwargs(settings, timeout_s=timeout_s))
     try:
-        try:
+        try:  # Never allow retrieval to raise past this function.
             # qdrant-client 1.17+ removed ``search`` on async client; use ``query_points``.
             res = await client.query_points(
                 collection_name=COLLECTION_NAME,
@@ -142,36 +228,57 @@ async def retrieve_for_query(
                 with_payload=True,
             )
         except UnexpectedResponse as e:
+            # Expected operational failures: collection missing, route not available, auth issues, etc.
+            reason = f"unexpected_response_{e.status_code}"
             if e.status_code == 404:
-                body = (e.content or b"").decode("utf-8", errors="replace")
-                # Some Qdrant deployments/proxies (or older server versions) don't expose
-                # the newer `/points/query` route and respond with a plain 404 page.
-                # Fall back to the older `/points/search` route via raw REST.
-                if body.strip().lower() == "404 page not found":
-                    res = await _fallback_rest_search(
-                        qdrant_url=settings.qdrant_url,
-                        api_key=settings.qdrant_api_key,
-                        collection_name=COLLECTION_NAME,
-                        vector=query_vector,
-                        limit=prefetch,
+                body = (e.content or b"").decode("utf-8", errors="replace").strip().lower()
+                if "doesn't exist" in body or "does not exist" in body or "not found" == body:
+                    _safe_log_warning(
+                        "Qdrant collection missing; continuing without RAG",
+                        request_id=request_id,
+                        query=q,
+                        failure_reason="collection_missing",
                     )
-                else:
-                    if COLLECTION_NAME in body and (
-                        "doesn't exist" in body or "not found" in body.lower()
-                    ):
-                        logger.warning(
-                            "Qdrant collection %r is missing; RAG disabled. "
-                            "From apps/backend run: uv run python -m app.ingest_cli",
-                            COLLECTION_NAME,
-                        )
-                        return []
-                    raise
+                    return []
+                # Common proxy response when endpoint is blocked/misrouted.
+                if body == "404 page not found":
+                    _safe_log_warning(
+                        "Qdrant endpoint not found; continuing without RAG",
+                        request_id=request_id,
+                        query=q,
+                        failure_reason="qdrant_endpoint_404",
+                    )
+                    return []
+            _safe_log_warning(
+                "Qdrant query failed; continuing without RAG",
+                request_id=request_id,
+                query=q,
+                failure_reason=reason,
+            )
+            return []
+        except Exception as exc:
+            _safe_log_warning(
+                "Qdrant query exception; continuing without RAG",
+                request_id=request_id,
+                query=q,
+                failure_reason=exc.__class__.__name__,
+            )
+            return []
     finally:
-        await client.close()
+        try:
+            await client.close()
+        except Exception:
+            # Never allow cleanup failures to cascade.
+            pass
 
     scored: list[RetrievedContext] = []
     for hit in res.points or []:
-        p = hit.payload or {}
+        p_raw = hit.payload
+        if p_raw is None:
+            continue
+        if not isinstance(p_raw, dict):
+            continue
+        p: dict[str, Any] = p_raw
         ctype = p.get("type")
         if ctype not in ("project", "skill", "experience", "summary"):
             continue
@@ -197,51 +304,3 @@ async def retrieve_for_query(
 
     scored.sort(key=lambda x: x.score, reverse=True)
     return _select_diverse(scored, top_k)
-
-
-class _FallbackPoint:
-    __slots__ = ("id", "score", "payload")
-
-    def __init__(self, *, id: str, score: float, payload: dict[str, Any] | None) -> None:
-        self.id = id
-        self.score = score
-        self.payload = payload
-
-
-class _FallbackQueryResponse:
-    __slots__ = ("points",)
-
-    def __init__(self, points: list[_FallbackPoint]) -> None:
-        self.points = points
-
-
-async def _fallback_rest_search(
-    *,
-    qdrant_url: str,
-    api_key: str | None,
-    collection_name: str,
-    vector: list[float],
-    limit: int,
-) -> _FallbackQueryResponse:
-    base = qdrant_url.rstrip("/")
-    url = f"{base}/collections/{collection_name}/points/search"
-    headers: dict[str, str] = {}
-    if api_key:
-        headers["api-key"] = api_key
-    payload = {"vector": vector, "limit": limit, "with_payload": True}
-    timeout = httpx.Timeout(15.0, connect=10.0)
-    async with httpx.AsyncClient(timeout=timeout) as http:
-        r = await http.post(url, headers=headers, json=payload)
-        r.raise_for_status()
-        data = r.json()
-    result = data.get("result") or []
-    points: list[_FallbackPoint] = []
-    for row in result:
-        points.append(
-            _FallbackPoint(
-                id=str(row.get("id", "")),
-                score=float(row.get("score") or 0.0),
-                payload=row.get("payload") if isinstance(row.get("payload"), dict) else None,
-            )
-        )
-    return _FallbackQueryResponse(points)
