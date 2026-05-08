@@ -9,6 +9,7 @@ from app.utils.logger import log
 
 _cached: dict[str, Any] | None = None
 _cached_path: str | None = None
+_cached_mtime_ns: int | None = None
 
 
 def _candidates(settings: Settings) -> list[Path]:
@@ -38,22 +39,34 @@ async def resolve_profile_path(settings: Settings) -> Path:
 
 
 async def load_dynamic_profile(settings: Settings) -> dict[str, Any]:
-    global _cached, _cached_path
+    global _cached, _cached_path, _cached_mtime_ns
     path = await resolve_profile_path(settings)
     key = str(path)
-    if _cached is not None and _cached_path == key:
+    try:
+        mtime_ns = path.stat().st_mtime_ns
+    except OSError:
+        mtime_ns = None
+    if (
+        _cached is not None
+        and _cached_path == key
+        and _cached_mtime_ns is not None
+        and mtime_ns is not None
+        and _cached_mtime_ns == mtime_ns
+    ):
         return _cached
     raw = path.read_text(encoding="utf-8")
     _cached = json.loads(raw)
     _cached_path = key
+    _cached_mtime_ns = mtime_ns
     log.info("Loaded profile from %s", key)
     return _cached
 
 
 def clear_profile_cache() -> None:
-    global _cached, _cached_path
+    global _cached, _cached_path, _cached_mtime_ns
     _cached = None
     _cached_path = None
+    _cached_mtime_ns = None
 
 
 def normalize_overview(overview: Any) -> dict[str, str]:
@@ -91,6 +104,56 @@ def normalize_projects_list(raw: Any) -> list[dict[str, Any]]:
         if item.get("title") is not None or item.get("id") is not None:
             out.append(item)
     return out
+
+
+def normalize_skills(raw: Any) -> list[str]:
+    """
+    Backward/forward compatible skills normalizer.
+
+    Accepts:
+    - legacy: ["TypeScript", "React", ...]
+    - current contract: {"languages": [...], "backend": [...], ...}
+    Returns: flat de-duplicated list (stable-ish order).
+    """
+    out: list[str] = []
+
+    def push(v: Any) -> None:
+        s = str(v or "").strip()
+        if not s:
+            return
+        out.append(s)
+
+    if isinstance(raw, list):
+        for x in raw:
+            push(x)
+    elif isinstance(raw, dict):
+        # Preserve a reasonable priority order for UI/prompt usefulness.
+        preferred = [
+            "languages",
+            "backend",
+            "frontend",
+            "databases",
+            "cloud",
+            "devops",
+            "ai",
+            "other",
+        ]
+        keys = [*preferred, *[k for k in raw.keys() if k not in preferred]]
+        for k in keys:
+            xs = raw.get(k)
+            if isinstance(xs, list):
+                for x in xs:
+                    push(x)
+
+    seen: set[str] = set()
+    deduped: list[str] = []
+    for s in out:
+        low = s.lower()
+        if low in seen:
+            continue
+        seen.add(low)
+        deduped.append(s)
+    return deduped
 
 
 def _truncate_block(s: str, max_chars: int) -> str:

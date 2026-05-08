@@ -25,10 +25,7 @@ async def load_skills_from_profile(settings: Settings) -> list[str]:
         prof = await profile_store.load_dynamic_profile(settings)
     except Exception:
         return []
-    raw = prof.get("skills")
-    if not isinstance(raw, list):
-        return []
-    return [str(x).strip() for x in raw if str(x).strip()]
+    return profile_store.normalize_skills(prof.get("skills"))
 
 
 _TECH = re.compile(

@@ -20,7 +20,7 @@ async def profile_overview():
 async def profile_skills():
     try:
         p = await profile_store.load_dynamic_profile(get_settings())
-        return {"skills": p["skills"]}
+        return {"skills": profile_store.normalize_skills(p.get("skills"))}
     except Exception:
         return JSONResponse(status_code=500, content={"error": "Failed to load profile"})
 
@@ -38,7 +38,8 @@ async def profile_projects():
 async def profile_experience():
     try:
         p = await profile_store.load_dynamic_profile(get_settings())
-        return {"experience": p["experience"]}
+        exp = p.get("experience")
+        return {"experience": exp if isinstance(exp, list) else []}
     except Exception:
         return JSONResponse(status_code=500, content={"error": "Failed to load profile"})
 
@@ -47,7 +48,8 @@ async def profile_experience():
 async def profile_education():
     try:
         p = await profile_store.load_dynamic_profile(get_settings())
-        return {"education": p["education"]}
+        ed = p.get("education")
+        return {"education": ed if isinstance(ed, list) else []}
     except Exception:
         return JSONResponse(status_code=500, content={"error": "Failed to load profile"})
 
