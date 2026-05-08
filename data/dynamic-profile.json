@@ -464,7 +464,7 @@
       "id": "e2",
       "company": "Sepa Cyber Technologies",
       "role": "Senior Full Stack Engineer",
-      "period": "2021 — Present",
+      "period": "Jul 2021 — Oct 2025",
       "domains": [
         "Fintech",
         "Blockchain",
@@ -477,28 +477,28 @@
       "id": "e3",
       "company": "Kifiya Technologies",
       "role": "Senior QA Engineer",
-      "period": "2020 — 2022",
+      "period": "May 2020 — Aug 2022",
       "summary": "Led automation testing, performance testing, regression testing, and QA engineering for distributed systems."
     },
     {
       "id": "e4",
       "company": "360.Ground",
       "role": "Senior Full Stack Developer",
-      "period": "2018 — 2020",
+      "period": "Oct 2018 — May 2020",
       "summary": "Built SSR React applications, scalable APIs, dashboards, and CI/CD infrastructure."
     },
     {
       "id": "e5",
       "company": "Exceed IT Systems",
       "role": "Software Developer",
-      "period": "2017 — 2018",
+      "period": "Apr 2017 — Oct 2018",
       "summary": "Developed CMS systems, APIs, dashboards, and performance-optimized frontend applications."
     },
     {
       "id": "e6",
       "company": "AhadooTec ICT Solutions",
       "role": "Software Developer / Tester",
-      "period": "2015 — 2017",
+      "period": "Aug 2015 — Mar 2017",
       "summary": "Built full-stack systems, WordPress platforms, and automation testing pipelines."
     }
   ],
@@ -507,7 +507,7 @@
       "id": "ed1",
       "institution": "University of Gondar",
       "degree": "BSc Computer Science",
-      "period": "2011 — 2015"
+      "period": "Oct 2011 — Jul 2015"
     }
   ]
 }
