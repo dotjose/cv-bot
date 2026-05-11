@@ -65,7 +65,7 @@
     ],
     "backend": [
       "Node.js",
-      "NestJS",
+      "Nest.js",
       "Express.js",
       "FastAPI",
       "Laravel",
@@ -105,6 +105,7 @@
       "OpenAI",
       "Gemini",
       "Groq",
+      "OpenRouter",
       "LangChain",
       "RAG Systems",
       "Prompt Engineering",
@@ -112,13 +113,13 @@
       "LLM Engineering"
     ],
     "architecture": [
-      "DDD",
       "CQRS",
       "Event-Driven Architecture",
       "System Design",
       "Scalable Architecture",
       "Domain-Driven Design",
-      "Distributed Systems"
+      "Distributed Systems",
+      "Page Object Model"
     ],
     "testing_and_qa": [
       "Jest",
@@ -171,7 +172,6 @@
     "other": [
       "WebRTC",
       "Web Scraping",
-      "PWA",
       "Progressive Web Apps",
       "Vite",
       "Webpack",
@@ -182,7 +182,6 @@
       "GitHub",
       "GitLab",
       "Figma",
-      "Framer",
       "Jira",
       "Trello",
       "Slack"
